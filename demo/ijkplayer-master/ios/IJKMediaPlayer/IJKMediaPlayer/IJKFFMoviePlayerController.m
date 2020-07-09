@@ -391,7 +391,8 @@ void IJKFFIOStatCompleteRegister(void (*cb)(const char *url,
     [self setScreenOn:_keepScreenOnWhilePlaying];
 
     
-    _urlString = @"rtsp://192.168.1.10:554/ap03";
+//    _urlString = @"rtsp://192.168.1.10:554/ap03";
+     _urlString = @"rtsp://192.168.10.133:8091/echovideo";
     NSLog(@"=======Path:  %@=====\n",_urlString);
 
     

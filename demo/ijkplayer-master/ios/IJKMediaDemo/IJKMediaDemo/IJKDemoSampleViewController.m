@@ -105,7 +105,8 @@
     [tableView deselectRowAtIndexPath:indexPath animated:YES];
 
     NSArray *item = self.sampleList[indexPath.row];
-    NSURL   *url  = [NSURL URLWithString:item[1]];
+   // NSURL   *url  = [NSURL URLWithString:item[1]];
+    NSURL   *url  = [NSURL URLWithString:@"rtsp://192.168.10.133:8091/echovideo"];
 
     [self.navigationController presentViewController:[[IJKVideoViewController alloc] initWithURL:url] animated:YES completion:^{}];
 }
