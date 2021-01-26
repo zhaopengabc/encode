@@ -59,6 +59,8 @@ typedef struct nova_encode
     TY_ENCODE_OPTION option;
     int (*set_encode_option)(TY_ENCODE_OPTION *);
     int (*init_encode)(TY_ENCODE_OPTION*);
+    int (*encodeCreate)(TY_ENCODE_OPTION *);
+    int (*encodeGetData)(TY_ENCODE_OPTION *);
     int (*receive_packet)();
     int (*send_frame)();
     int (*close)(TY_ENCODE_OPTION *);
@@ -68,5 +70,24 @@ typedef struct nova_encoder_queue
 {
     TY_NOVA_ENCODER *encoders;
 }TY_NOVA_ENCODER_QUEUE;
+
+typedef struct encode_inside_parameter
+{
+    MI_VIF_DEV vifDev;
+    MI_VIF_CHN vifChn;
+    MI_VPE_CHANNEL VpeChn;
+    MI_U32 u32InputPort;
+    MI_U32 DivpChn;
+    MI_VENC_CHN VencChn;
+    MI_U32 u32VencDevId;
+
+    MI_SYS_PixelFormat_e ePixFormat;
+    MI_VPE_HDRType_e eHdrType;
+
+    MI_SYS_PixelFormat_e inputYUVType;
+    enum AVEncodeFormat encodeFormat;
+    TY_RESOLUTION_RATE  resolutionRate;
+
+}TY_ENCODE_INSIDE_PARAM;
 
 #endif /*NOVA_ENCODE_H*/
