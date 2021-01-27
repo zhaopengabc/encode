@@ -8,11 +8,7 @@
 #include <signal.h>
 
 
-#include "st_common.h"
-#include "st_vif.h"
-#include "st_vpe.h"
-#include "st_venc.h"
-#include "mi_divp.h"
+
 
 #include "nova_encode.h"
 
@@ -21,10 +17,10 @@ static int setOption(TY_NOVA_ENCODER *encoder)
     printf("set option ... \n");
 }
 
-TY_ENCODE_INSIDE_PARAM gInside_param;
+// TY_ENCODE_INSIDE_PARAM gInside_param;
 static MI_BOOL g_bExit = FALSE;
 
-static int initVPE(TY_NOVA_ENCODER *encoder)
+static int initVPE(TY_ENCODE_INSIDE_PARAM gInside_param)
 {
     ST_VPE_ChannelInfo_T stVpeChannelInfo;
 
@@ -69,7 +65,7 @@ static int initVPE(TY_NOVA_ENCODER *encoder)
     stBindInfo.eBindType = E_MI_SYS_BIND_TYPE_FRAME_BASE;
     ST_Sys_Bind(&stBindInfo);
 }
-static int initDIVP(TY_NOVA_ENCODER *encoder)
+static int initDIVP(TY_ENCODE_INSIDE_PARAM gInside_param)
 {
     MI_DIVP_ChnAttr_t stDivpChnAttr;
     memset(&stDivpChnAttr, 0x00, sizeof(MI_DIVP_ChnAttr_t));
@@ -112,9 +108,9 @@ static int initDIVP(TY_NOVA_ENCODER *encoder)
     STCHECKRESULT(ST_Sys_Bind(&stBindInfo));
 }
 
-static int initVENC(TY_NOVA_ENCODER *encoder)
+static int initVENC(TY_ENCODE_INSIDE_PARAM gInside_param)
 {
-    MI_VENC_CHN VencChn = encoder->channel;
+    MI_VENC_CHN VencChn = gInside_param.VencChn;
     MI_U32 u32VencDevId = 0xff;
 
     MI_VENC_ChnAttr_t stChnAttr;
@@ -162,6 +158,8 @@ static int initVENC(TY_NOVA_ENCODER *encoder)
     ST_Venc_StartChannel(gInside_param.VencChn);
 
     MI_VENC_GetChnDevid(gInside_param.VencChn, &gInside_param.u32VencDevId);
+    printf("gInside_param.VencChn : %d \n",gInside_param.VencChn);
+    printf("gInside_param.u32VencDevId : %d \n",gInside_param.u32VencDevId);
     // vpe port 2 can not attach osd, so use divp
     ST_Sys_BindInfo_T stBindInfo;
     memset(&stBindInfo, 0x0, sizeof(ST_Sys_BindInfo_T));
@@ -181,7 +179,7 @@ static int initVENC(TY_NOVA_ENCODER *encoder)
     ST_Sys_Bind(&stBindInfo);
 }
 
-static int initVIF(TY_NOVA_ENCODER *encoder)
+static int initVIF(TY_ENCODE_INSIDE_PARAM gInside_param)
 {
     STCHECKRESULT(ST_Sys_Init());
 
@@ -229,11 +227,11 @@ static int initVIF(TY_NOVA_ENCODER *encoder)
 
     MI_ModuleId_e eVifModeId = E_MI_MODULE_ID_VIF;
     MI_U8 u8MmaHeap[128] = "mma_heap_name0";
-    MI_SYS_SetChnMMAConf(eVifModeId, 0, encoder->channel, u8MmaHeap);
+    MI_SYS_SetChnMMAConf(eVifModeId, 0, gInside_param.DivpChn, u8MmaHeap);
 
     gInside_param.ePixFormat = ePixFormat;
 }
-static int encodeGetData(TY_NOVA_ENCODER *encoder)
+static int encodeGetData(TY_NOVA_ENCODER *encode)
 {
     MI_SYS_BufInfo_t stBufInfo;
     MI_S32 s32Ret = MI_SUCCESS;
@@ -244,6 +242,10 @@ static int encodeGetData(TY_NOVA_ENCODER *encoder)
     MI_VENC_ChnStat_t stStat;
     MI_VENC_CHN vencChn;
     char *data;
+
+    TY_NOVA_ENCODER *encoder;
+    encoder = (TY_NOVA_ENCODER *)encode;
+    vencChn = encoder->insideParam.VencChn;
 
     s32Ret = MI_VENC_GetChnDevid(vencChn, &u32DevId);
     if (MI_SUCCESS != s32Ret)
@@ -280,66 +282,66 @@ static int encodeGetData(TY_NOVA_ENCODER *encoder)
         return len;
     }
 }
-static int encodePutData(TY_NOVA_ENCODER *encoder)
+static int encodePutData(TY_ENCODE_INSIDE_PARAM *encoder)
 {
 }
 
-static int deinitVPE(TY_NOVA_ENCODER *encoder)
+static int deinitVPE(TY_ENCODE_INSIDE_PARAM *gInside_param)
 {
     ST_Sys_BindInfo_T stBindInfo;
     memset(&stBindInfo, 0x0, sizeof(ST_Sys_BindInfo_T));
     stBindInfo.stSrcChnPort.eModId = E_MI_MODULE_ID_VIF;
-    stBindInfo.stSrcChnPort.u32DevId = gInside_param.vifDev;
-    stBindInfo.stSrcChnPort.u32ChnId = gInside_param.vifChn;
-    stBindInfo.stSrcChnPort.u32PortId = gInside_param.u32InputPort;
+    stBindInfo.stSrcChnPort.u32DevId = gInside_param->vifDev;
+    stBindInfo.stSrcChnPort.u32ChnId = gInside_param->vifChn;
+    stBindInfo.stSrcChnPort.u32PortId = gInside_param->u32InputPort;
 
     stBindInfo.stDstChnPort.eModId = E_MI_MODULE_ID_VPE;
     stBindInfo.stDstChnPort.u32DevId = 0;
-    stBindInfo.stDstChnPort.u32ChnId = gInside_param.VpeChn;
-    stBindInfo.stDstChnPort.u32PortId = gInside_param.u32InputPort;
+    stBindInfo.stDstChnPort.u32ChnId = gInside_param->VpeChn;
+    stBindInfo.stDstChnPort.u32PortId = gInside_param->u32InputPort;
 
     stBindInfo.u32SrcFrmrate = 30;
     stBindInfo.u32DstFrmrate = 30;
     stBindInfo.eBindType = E_MI_SYS_BIND_TYPE_FRAME_BASE;
     ST_Sys_UnBind(&stBindInfo);
 
-    ST_Vif_StopPort(gInside_param.vifChn,0);
-    ST_Vif_DisableDev(gInside_param.vifDev);
+    ST_Vif_StopPort(gInside_param->vifChn,0);
+    ST_Vif_DisableDev(gInside_param->vifDev);
 }
-static int deinitDIVP(TY_NOVA_ENCODER *encoder)
+static int deinitDIVP(TY_ENCODE_INSIDE_PARAM *insideParam)
 {
     ST_Sys_BindInfo_T stBindInfo;
     memset(&stBindInfo, 0x0, sizeof(ST_Sys_BindInfo_T));
     stBindInfo.stSrcChnPort.eModId = E_MI_MODULE_ID_VPE;
     stBindInfo.stSrcChnPort.u32DevId = 0;
-    stBindInfo.stSrcChnPort.u32ChnId = gInside_param.VpeChn;
+    stBindInfo.stSrcChnPort.u32ChnId = insideParam->VpeChn;
     stBindInfo.stSrcChnPort.u32PortId = 0;
     stBindInfo.stDstChnPort.eModId = E_MI_MODULE_ID_DIVP;
     stBindInfo.stDstChnPort.u32DevId = 0;
-    stBindInfo.stDstChnPort.u32ChnId = gInside_param.DivpChn;
+    stBindInfo.stDstChnPort.u32ChnId = insideParam->DivpChn;
     stBindInfo.stDstChnPort.u32PortId = 0;
     stBindInfo.u32SrcFrmrate = 30;
     stBindInfo.u32DstFrmrate = 30;
     stBindInfo.eBindType = E_MI_SYS_BIND_TYPE_FRAME_BASE;
     ST_Sys_UnBind(&stBindInfo);
 
-    ST_Vpe_StopPort(gInside_param.VpeChn, 0);
-    ST_Vpe_StopChannel(gInside_param.VpeChn);
-    ST_Vpe_DestroyChannel(gInside_param.VpeChn);
+    ST_Vpe_StopPort(insideParam->VpeChn, 0);
+    ST_Vpe_StopChannel(insideParam->VpeChn);
+    ST_Vpe_DestroyChannel(insideParam->VpeChn);
 
 }
-static int deinitVENC(TY_NOVA_ENCODER *encoder)
+static int deinitVENC(TY_ENCODE_INSIDE_PARAM *insideParam)
 {
     ST_Sys_BindInfo_T stBindInfo;
     memset(&stBindInfo, 0x0, sizeof(ST_Sys_BindInfo_T));
     stBindInfo.stSrcChnPort.eModId = E_MI_MODULE_ID_DIVP;
     stBindInfo.stSrcChnPort.u32DevId = 0;
-    stBindInfo.stSrcChnPort.u32ChnId = gInside_param.DivpChn;
+    stBindInfo.stSrcChnPort.u32ChnId = insideParam->DivpChn;
     stBindInfo.stSrcChnPort.u32PortId = 0;
 
     stBindInfo.stDstChnPort.eModId = E_MI_MODULE_ID_VENC;
-    stBindInfo.stDstChnPort.u32DevId = gInside_param.u32VencDevId;
-    stBindInfo.stDstChnPort.u32ChnId = gInside_param.VencChn;
+    stBindInfo.stDstChnPort.u32DevId = insideParam->u32VencDevId;
+    stBindInfo.stDstChnPort.u32ChnId = insideParam->VencChn;
     stBindInfo.stDstChnPort.u32PortId = 0;
 
     stBindInfo.u32SrcFrmrate = 30;
@@ -347,51 +349,60 @@ static int deinitVENC(TY_NOVA_ENCODER *encoder)
     ST_Sys_UnBind(&stBindInfo);
 
 
-    ST_Venc_StopChannel(gInside_param.VencChn);
-    ST_Venc_DestoryChannel(gInside_param.VencChn);
+    ST_Venc_StopChannel(insideParam->VencChn);
+    ST_Venc_DestoryChannel(insideParam->VencChn);
 
-    MI_DIVP_StopChn(gInside_param.DivpChn);  
-    MI_DIVP_DestroyChn(gInside_param.DivpChn);
+    MI_DIVP_StopChn(insideParam->DivpChn);  
+    MI_DIVP_DestroyChn(insideParam->DivpChn);
 }
 
-static int encodeCreate(TY_NOVA_ENCODER *encoder)
+static int encodeCreate(void *encoder)
 {
+    TY_NOVA_ENCODER *encode;
+    encode = (TY_NOVA_ENCODER *)encoder;
+
+    TY_ENCODE_OPTION option = encode->option;
+
+    TY_ENCODE_INSIDE_PARAM gInside_param;
     memset(&gInside_param, 0, sizeof(TY_ENCODE_INSIDE_PARAM));
     gInside_param.eHdrType = E_MI_VPE_HDR_TYPE_OFF;
-    gInside_param.vifDev = encoder->channel;
+    gInside_param.vifDev = option.channel;
     gInside_param.vifChn = gInside_param.vifDev * 4;
     gInside_param.VpeChn = gInside_param.vifDev;
     gInside_param.DivpChn = gInside_param.vifDev;
     gInside_param.VencChn = gInside_param.vifDev * 2;
     gInside_param.u32InputPort = gInside_param.vifDev;
 
-    gInside_param.resolutionRate.width = encoder->option.resolutionRate.width;
-    gInside_param.resolutionRate.height = encoder->option.resolutionRate.height;
-    gInside_param.resolutionRate.rate = encoder->option.resolutionRate.rate;
+    gInside_param.resolutionRate.width = option.resolutionRate.width;
+    gInside_param.resolutionRate.height = option.resolutionRate.height;
+    gInside_param.resolutionRate.rate = option.resolutionRate.rate;
 
-    gInside_param.encodeFormat = encoder->option.encodeFormat;
+    gInside_param.encodeFormat = option.encodeFormat;
 
-    if (encoder->option.inputDataType == YUV_SEMIPLANAR_420)
+    if (option.inputDataType == YUV_SEMIPLANAR_420)
     {
         gInside_param.inputYUVType = E_MI_SYS_PIXEL_FRAME_YUV_SEMIPLANAR_420;
     }
-    else if (encoder->option.inputDataType == YUV_SEMIPLANAR_422)
+    else if (option.inputDataType == YUV_SEMIPLANAR_422)
     {
         gInside_param.inputYUVType = E_MI_SYS_PIXEL_FRAME_YUV_SEMIPLANAR_422;
-    }
+    }    
+    encode->insideParam = gInside_param;
 
-    initVIF(encoder);
-    initVPE(encoder);
-    initDIVP(encoder);
-    initVENC(encoder);
+    initVIF(gInside_param);
+    initVPE(gInside_param);
+    initDIVP(gInside_param);
+    initVENC(gInside_param);
 }
 
-static int encode_close(TY_NOVA_ENCODER *encoder)
+static int encode_close(void *encoder)
 {
-    deinitVENC(encoder);
-    deinitDIVP(encoder);
-    deinitVPE(encoder);
-    STCHECKRESULT(ST_Sys_Exit());
+    TY_NOVA_ENCODER *encode;
+    encode = (TY_NOVA_ENCODER *)encoder;
+    deinitVENC(&(encode->insideParam));
+    deinitDIVP(&(encode->insideParam));
+    deinitVPE(&(encode->insideParam));
+    ST_Sys_Exit();
 }
 
 TY_NOVA_ENCODER_QUEUE *nova_encoder_alloc(unsigned int decoderSize)
@@ -430,6 +441,8 @@ TY_NOVA_ENCODER_QUEUE *nova_encoder(TY_NOVA_ENCODER *NOVA_encoder)
 
     return encode_queue;
 }
+
+/*
 void ST_HandleSig(MI_S32 signo)
 {
     if (signo == SIGINT)
@@ -439,15 +452,13 @@ void ST_HandleSig(MI_S32 signo)
         g_bExit = TRUE;
     }
 }
-
 int main()
 {
     signal(SIGINT,ST_HandleSig);
     TY_NOVA_ENCODER_QUEUE *encoder_queue;
     TY_NOVA_ENCODER encoder;
     encoder.name = "sigmastar";
-    encoder.channel = 0;
-    // encoder.option.channel = 0;
+    encoder.option.channel = 0;
     encoder.option.inputDataType = YUV_SEMIPLANAR_420;
     encoder.option.mediaType = AVMEDIA_TYPE_VIDEO;
     encoder.option.encodeFormat = AV_ENCDOE_ID_H264;
@@ -461,12 +472,14 @@ int main()
     while (!g_bExit)
     {
         sleep(1);
+        // printf("aaaa \n");
         encoder_queue->encoders->encodeGetData(&encoder);
-        printf("data len : %d \n",encoder.option.outdata.frameLen);
-        printf("data [0] : %d \n",encoder.option.outdata.buf[0]);
+        // printf("data len : %d \n",encoder.option.outdata.frameLen);
+        // printf("data [0] : %d \n",encoder.option.outdata.buf[0]);
     }
 
     encoder_queue->encoders->close(&encoder);
 
     nova_encoder_free(encoder_queue);
 }
+*/

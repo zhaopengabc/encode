@@ -10,7 +10,11 @@
 * Author : zhaopeng
 * Time : 2021/01/11
 */
-
+#include "st_common.h"
+#include "st_vif.h"
+#include "st_vpe.h"
+#include "st_venc.h"
+#include "mi_divp.h"
 
 #ifndef NOVA_ENCODE_H
 #define NOVA_ENCODE_H
@@ -58,27 +62,6 @@ typedef struct encode_option
     TY_ENCODE_OUT_DATA outdata;
 }TY_ENCODE_OPTION;
 
-int nova_find_encoder_by_name(char* decoderName);
-
-typedef struct nova_encode
-{
-    const char *name; // "Hisi" "RK" "Sigmastar"
-    int channel;
-    TY_ENCODE_OPTION option;
-    int (*set_encode_option)(TY_ENCODE_OPTION *);
-    int (*init_encode)(TY_ENCODE_OPTION*);
-    int (*encodeCreate)(TY_ENCODE_OPTION *);
-    int (*encodeGetData)(TY_ENCODE_OPTION *);
-    int (*receive_packet)();
-    int (*send_frame)();
-    int (*close)(TY_ENCODE_OPTION *);
-}TY_NOVA_ENCODER;
-
-typedef struct nova_encoder_queue
-{
-    TY_NOVA_ENCODER *encoders;
-}TY_NOVA_ENCODER_QUEUE;
-
 typedef struct encode_inside_parameter
 {
     MI_VIF_DEV vifDev;
@@ -97,5 +80,23 @@ typedef struct encode_inside_parameter
     TY_RESOLUTION_RATE  resolutionRate;
 
 }TY_ENCODE_INSIDE_PARAM;
+int nova_find_encoder_by_name(char* decoderName);
+
+typedef struct nova_encode
+{
+    const char *name; // "Hisi" "RK" "Sigmastar"
+    TY_ENCODE_OPTION option;
+    TY_ENCODE_INSIDE_PARAM  insideParam;
+    int (*encodeCreate)(void *);
+    int (*encodeGetData)(void *);
+    int (*close)(void *);
+}TY_NOVA_ENCODER;
+
+typedef struct nova_encoder_queue
+{
+    TY_NOVA_ENCODER *encoders;
+}TY_NOVA_ENCODER_QUEUE;
+
+
 
 #endif /*NOVA_ENCODE_H*/
