@@ -41,6 +41,13 @@ typedef struct resolution_rate
     int rate;
 }TY_RESOLUTION_RATE;
 
+typedef struct encode_out_data
+{
+    int frameLen;
+    char *buf;
+}TY_ENCODE_OUT_DATA;
+
+
 typedef struct encode_option
 {
     int channel;
@@ -48,6 +55,7 @@ typedef struct encode_option
     enum YUVDataType inputDataType;
     enum AVEncodeFormat encodeFormat;
     TY_RESOLUTION_RATE  resolutionRate;
+    TY_ENCODE_OUT_DATA outdata;
 }TY_ENCODE_OPTION;
 
 int nova_find_encoder_by_name(char* decoderName);

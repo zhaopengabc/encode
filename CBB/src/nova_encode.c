@@ -243,6 +243,7 @@ static int encodeGetData(TY_NOVA_ENCODER *encoder)
     MI_VENC_Pack_t stPack;
     MI_VENC_ChnStat_t stStat;
     MI_VENC_CHN vencChn;
+    char *data;
 
     s32Ret = MI_VENC_GetChnDevid(vencChn, &u32DevId);
     if (MI_SUCCESS != s32Ret)
@@ -265,14 +266,17 @@ static int encodeGetData(TY_NOVA_ENCODER *encoder)
     if (MI_SUCCESS == s32Ret)
     {
         len = stStream.pstPack[0].u32Len;
-        // memcpy(ucpBuf, stStream.pstPack[0].pu8Addr, MIN(len, BufLen));
         printf("len : %d \n", len);
+        encoder->option.outdata.frameLen = len;
+        data = (char *)malloc(len);
+        memcpy(data, stStream.pstPack[0].pu8Addr,len);
+        encoder->option.outdata.buf = data;
         s32Ret = MI_VENC_ReleaseStream(vencChn, &stStream);
         if (s32Ret != MI_SUCCESS)
         {
             ST_WARN("RELEASE venc buffer fail\n");
         }
-
+        free(data);
         return len;
     }
 }
@@ -458,6 +462,8 @@ int main()
     {
         sleep(1);
         encoder_queue->encoders->encodeGetData(&encoder);
+        printf("data len : %d \n",encoder.option.outdata.frameLen);
+        printf("data [0] : %d \n",encoder.option.outdata.buf[0]);
     }
 
     encoder_queue->encoders->close(&encoder);
