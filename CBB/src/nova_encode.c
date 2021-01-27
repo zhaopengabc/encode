@@ -5,6 +5,8 @@
 */
 #include <stdlib.h>
 #include <stdio.h>
+#include <signal.h>
+
 
 #include "st_common.h"
 #include "st_vif.h"
@@ -20,6 +22,7 @@ static int setOption(TY_NOVA_ENCODER *encoder)
 }
 
 TY_ENCODE_INSIDE_PARAM gInside_param;
+static MI_BOOL g_bExit = FALSE;
 
 static int initVPE(TY_NOVA_ENCODER *encoder)
 {
@@ -277,23 +280,57 @@ static int encodePutData(TY_NOVA_ENCODER *encoder)
 {
 }
 
-static int deinitVIF(TY_NOVA_ENCODER *encoder)
-{
-}
-
 static int deinitVPE(TY_NOVA_ENCODER *encoder)
 {
+    ST_Sys_BindInfo_T stBindInfo;
+    memset(&stBindInfo, 0x0, sizeof(ST_Sys_BindInfo_T));
+    stBindInfo.stSrcChnPort.eModId = E_MI_MODULE_ID_VIF;
+    stBindInfo.stSrcChnPort.u32DevId = gInside_param.vifDev;
+    stBindInfo.stSrcChnPort.u32ChnId = gInside_param.vifChn;
+    stBindInfo.stSrcChnPort.u32PortId = gInside_param.u32InputPort;
+
+    stBindInfo.stDstChnPort.eModId = E_MI_MODULE_ID_VPE;
+    stBindInfo.stDstChnPort.u32DevId = 0;
+    stBindInfo.stDstChnPort.u32ChnId = gInside_param.VpeChn;
+    stBindInfo.stDstChnPort.u32PortId = gInside_param.u32InputPort;
+
+    stBindInfo.u32SrcFrmrate = 30;
+    stBindInfo.u32DstFrmrate = 30;
+    stBindInfo.eBindType = E_MI_SYS_BIND_TYPE_FRAME_BASE;
+    ST_Sys_UnBind(&stBindInfo);
+
+    ST_Vif_StopPort(gInside_param.vifChn,0);
+    ST_Vif_DisableDev(gInside_param.vifDev);
 }
 static int deinitDIVP(TY_NOVA_ENCODER *encoder)
-{
-}
-static int deinitVENC(TY_NOVA_ENCODER *encoder)
 {
     ST_Sys_BindInfo_T stBindInfo;
     memset(&stBindInfo, 0x0, sizeof(ST_Sys_BindInfo_T));
     stBindInfo.stSrcChnPort.eModId = E_MI_MODULE_ID_VPE;
     stBindInfo.stSrcChnPort.u32DevId = 0;
     stBindInfo.stSrcChnPort.u32ChnId = gInside_param.VpeChn;
+    stBindInfo.stSrcChnPort.u32PortId = 0;
+    stBindInfo.stDstChnPort.eModId = E_MI_MODULE_ID_DIVP;
+    stBindInfo.stDstChnPort.u32DevId = 0;
+    stBindInfo.stDstChnPort.u32ChnId = gInside_param.DivpChn;
+    stBindInfo.stDstChnPort.u32PortId = 0;
+    stBindInfo.u32SrcFrmrate = 30;
+    stBindInfo.u32DstFrmrate = 30;
+    stBindInfo.eBindType = E_MI_SYS_BIND_TYPE_FRAME_BASE;
+    ST_Sys_UnBind(&stBindInfo);
+
+    ST_Vpe_StopPort(gInside_param.VpeChn, 0);
+    ST_Vpe_StopChannel(gInside_param.VpeChn);
+    ST_Vpe_DestroyChannel(gInside_param.VpeChn);
+
+}
+static int deinitVENC(TY_NOVA_ENCODER *encoder)
+{
+    ST_Sys_BindInfo_T stBindInfo;
+    memset(&stBindInfo, 0x0, sizeof(ST_Sys_BindInfo_T));
+    stBindInfo.stSrcChnPort.eModId = E_MI_MODULE_ID_DIVP;
+    stBindInfo.stSrcChnPort.u32DevId = 0;
+    stBindInfo.stSrcChnPort.u32ChnId = gInside_param.DivpChn;
     stBindInfo.stSrcChnPort.u32PortId = 0;
 
     stBindInfo.stDstChnPort.eModId = E_MI_MODULE_ID_VENC;
@@ -305,10 +342,12 @@ static int deinitVENC(TY_NOVA_ENCODER *encoder)
     stBindInfo.u32DstFrmrate = 30;
     ST_Sys_UnBind(&stBindInfo);
 
-    ST_Vpe_StopPort(gInside_param.VpeChn, 0);
 
     ST_Venc_StopChannel(gInside_param.VencChn);
     ST_Venc_DestoryChannel(gInside_param.VencChn);
+
+    MI_DIVP_StopChn(gInside_param.DivpChn);  
+    MI_DIVP_DestroyChn(gInside_param.DivpChn);
 }
 
 static int encodeCreate(TY_NOVA_ENCODER *encoder)
@@ -345,9 +384,9 @@ static int encodeCreate(TY_NOVA_ENCODER *encoder)
 
 static int encode_close(TY_NOVA_ENCODER *encoder)
 {
-    printf("close .... \n");
-    
     deinitVENC(encoder);
+    deinitDIVP(encoder);
+    deinitVPE(encoder);
     STCHECKRESULT(ST_Sys_Exit());
 }
 
@@ -387,9 +426,19 @@ TY_NOVA_ENCODER_QUEUE *nova_encoder(TY_NOVA_ENCODER *NOVA_encoder)
 
     return encode_queue;
 }
+void ST_HandleSig(MI_S32 signo)
+{
+    if (signo == SIGINT)
+    {
+        ST_INFO("catch Ctrl + C, exit normally\n");
+
+        g_bExit = TRUE;
+    }
+}
 
 int main()
 {
+    signal(SIGINT,ST_HandleSig);
     TY_NOVA_ENCODER_QUEUE *encoder_queue;
     TY_NOVA_ENCODER encoder;
     encoder.name = "sigmastar";
@@ -403,17 +452,14 @@ int main()
     encoder.option.resolutionRate.rate = 30;
 
     encoder_queue = nova_encoder(&encoder);
-    // encoder_queue->encoders->init_encode(&encoder);
-    // encoder_queue->encoders->set_encode_option(&encoder);
-    // encoder_queue->encoders->receive_packet(&encoder);
-    // encoder_queue->encoders->send_frame(&encoder);
     encoder_queue->encoders->encodeCreate(&encoder);
 
-    while (1)
+    while (!g_bExit)
     {
         sleep(1);
         encoder_queue->encoders->encodeGetData(&encoder);
     }
+
     encoder_queue->encoders->close(&encoder);
 
     nova_encoder_free(encoder_queue);
