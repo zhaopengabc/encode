@@ -124,12 +124,12 @@ int main()
     pthread_t pThread_2;
 
     pthread_create(&pThread_1,NULL,nova_encode_0,NULL);
-    pthread_create(&pThread_2,NULL,nova_encode_2,NULL);
+    // pthread_create(&pThread_2,NULL,nova_encode_2,NULL);
     while (!g_bExit)
     {
         sleep(1);
     }
     pthread_cancel(pThread_1);
-    pthread_cancel(pThread_2);
+    // pthread_cancel(pThread_2);
     return 0;
 }
