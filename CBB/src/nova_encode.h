@@ -47,10 +47,16 @@ typedef struct resolution_rate
 
 typedef struct encode_out_data
 {
-    int frameLen;
+    unsigned int frameLen;
     char *buf;
 }TY_ENCODE_OUT_DATA;
-
+typedef struct YUV_data
+{
+    int bufSize;
+    void *pVireAddr[3];
+    unsigned long phyAddr[3];
+    unsigned long stride[3];
+}TY_YUV_DATA;
 
 typedef struct encode_option
 {
@@ -60,6 +66,8 @@ typedef struct encode_option
     enum AVEncodeFormat encodeFormat;
     TY_RESOLUTION_RATE  resolutionRate;
     TY_ENCODE_OUT_DATA outdata;
+    TY_YUV_DATA yuvInputData;
+    TY_YUV_DATA yuvOutputData;
 }TY_ENCODE_OPTION;
 
 typedef struct encode_inside_parameter
@@ -88,8 +96,14 @@ typedef struct nova_encode
     TY_ENCODE_OPTION option;
     TY_ENCODE_INSIDE_PARAM  insideParam;
     int (*encodeCreate)(void *);
-    int (*encodeGetData)(void *);
-    int (*close)(void *);
+    int (*encodeGetCompressData)(void *);
+    int (*encodeOutputYUVData)(void *);
+    int (*encodeInputYUVData)(void *);
+    int (*encodeDestroy)(void *);
+
+    int (*encodeCreate_General)(void *);
+    int (*encodeGetCompressData_General)(void *);
+    int (*encodeDestroy_General)(void *);
 }TY_NOVA_ENCODER;
 
 typedef struct nova_encoder_queue

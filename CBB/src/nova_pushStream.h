@@ -8,10 +8,15 @@ enum Protocol
     RTMP,
     HTTP
 };
+enum compresseFormat
+{
+    H264,
+    H265
+};
 
 typedef struct inputFrameData
 {
-    int len;
+    unsigned int len;
     char *data;
 }TY_INPUT_DATA;
 
@@ -19,6 +24,7 @@ typedef struct frameParam
 {
     int channel;
     enum Protocol protocol; //push stream protocol : RTSP RTMP RTCP HTTP
+    enum compresseFormat compressFormat;//H264 or H265
     TY_INPUT_DATA frameData;
 }TY_FRAME_PARAM;
 

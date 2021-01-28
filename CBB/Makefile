@@ -49,7 +49,9 @@ LDLIBS += -lmi_sensor -lmi_vif -lmi_vpe -lmi_venc -lmi_common -lmi_sys -lmi_isp 
 # 	  CXStreamer/sigmastar/SSC339G/vpe/vpe_element.cpp \
 #   	  CXStreamer/sigmastar/SSC339G/venc/venc_element.cpp
 
-C_SRC = ./src/nova_encode.c \
+C_SRC = ./src/test.c \
+	./src/nova_encode.c \
+	./src/nova_pushStream.c \
 	$(SSC339G_PATH)/vif/st_vif.c \
   	$(SSC339G_PATH)/vpe/st_vpe.c \
 	$(SSC339G_PATH)/venc/st_venc.c \

@@ -2,24 +2,74 @@
 * create encoder
 * Author : zhaopeng
 * Time   : 2021/01/11
+* description: sigmastar SSC339G platform code CBB.
+* 1.create encode include : 
+    1) init VIF;
+    2) init VPE . VIF bind VPE;
+    3) init DIVP. VPE bind DIVP;
+    4) init VENC， DIVP bind VENC;
+  2. get frame data : H246 or H265.
+  3. destory encode.
 */
 #include <stdlib.h>
 #include <stdio.h>
 #include <signal.h>
 
-
-
-
 #include "nova_encode.h"
 
-static int setOption(TY_NOVA_ENCODER *encoder)
+// static MI_BOOL g_bExit = FALSE;
+static int initVIF(TY_ENCODE_INSIDE_PARAM gInside_param)
 {
-    printf("set option ... \n");
+    STCHECKRESULT(ST_Sys_Init());
+
+    MI_SNR_PAD_ID_e eSnrPadId;
+    MI_SNR_PADInfo_t stPad0Info;
+    MI_SNR_PlaneInfo_t stSnrPlane0Info;
+    MI_U32 u32CapWidth = 0, u32CapHeight = 0;
+    MI_VIF_FrameRate_e eFrameRate = E_MI_VIF_FRAMERATE_FULL;
+    MI_SYS_PixelFormat_e ePixFormat;
+
+    eSnrPadId = E_MI_SNR_PAD_ID_0;
+    MI_SNR_SetRes(eSnrPadId, 0);
+    MI_SNR_Enable(eSnrPadId);
+    MI_SNR_GetPadInfo(eSnrPadId, &stPad0Info);
+    MI_SNR_GetPlaneInfo(eSnrPadId, 0, &stSnrPlane0Info);
+
+    u32CapWidth = stSnrPlane0Info.stCapRect.u16Width;
+    u32CapHeight = stSnrPlane0Info.stCapRect.u16Height;
+    eFrameRate = E_MI_VIF_FRAMERATE_FULL;
+    ePixFormat = (MI_SYS_PixelFormat_e)RGB_BAYER_PIXEL(stSnrPlane0Info.ePixPrecision, stSnrPlane0Info.eBayerId);
+
+    MI_VIF_DevAttr_t stDevAttr;
+    memset(&stDevAttr, 0x0, sizeof(MI_VIF_DevAttr_t));
+    stDevAttr.eIntfMode = stPad0Info.eIntfMode;
+    stDevAttr.eWorkMode = E_MI_VIF_WORK_MODE_RGB_FRAMEMODE;
+    stDevAttr.eHDRType = E_MI_VIF_HDR_TYPE_OFF;
+    stDevAttr.eDataSeq = stPad0Info.unIntfAttr.stMipiAttr.eDataYUVOrder;
+    stDevAttr.eBitOrder = E_MI_VIF_BITORDER_NORMAL;
+
+    ExecFunc(MI_VIF_SetDevAttr(gInside_param.vifDev, &stDevAttr), MI_SUCCESS);
+    ExecFunc(MI_VIF_EnableDev(gInside_param.vifDev), MI_SUCCESS);
+
+    ST_VIF_PortInfo_T stVifPortInfoInfo;
+    memset(&stVifPortInfoInfo, 0, sizeof(ST_VIF_PortInfo_T));
+    stVifPortInfoInfo.u32RectX = stSnrPlane0Info.stCapRect.u16X;
+    stVifPortInfoInfo.u32RectY = stSnrPlane0Info.stCapRect.u16Y;
+    stVifPortInfoInfo.u32RectWidth = u32CapWidth;
+    stVifPortInfoInfo.u32RectHeight = u32CapHeight;
+    stVifPortInfoInfo.u32DestWidth = u32CapWidth;
+    stVifPortInfoInfo.u32DestHeight = u32CapHeight;
+    stVifPortInfoInfo.eFrameRate = eFrameRate;
+    stVifPortInfoInfo.ePixFormat = ePixFormat; //E_MI_SYS_PIXEL_FRAME_RGB_BAYER_12BPP_GR;
+    STCHECKRESULT(ST_Vif_CreatePort(gInside_param.vifChn, 0, &stVifPortInfoInfo));
+    STCHECKRESULT(ST_Vif_StartPort(0, gInside_param.vifChn, 0));
+
+    MI_ModuleId_e eVifModeId = E_MI_MODULE_ID_VIF;
+    MI_U8 u8MmaHeap[128] = "mma_heap_name0";
+    MI_SYS_SetChnMMAConf(eVifModeId, 0, gInside_param.DivpChn, u8MmaHeap);
+
+    gInside_param.ePixFormat = ePixFormat;
 }
-
-// TY_ENCODE_INSIDE_PARAM gInside_param;
-static MI_BOOL g_bExit = FALSE;
-
 static int initVPE(TY_ENCODE_INSIDE_PARAM gInside_param)
 {
     ST_VPE_ChannelInfo_T stVpeChannelInfo;
@@ -92,20 +142,20 @@ static int initDIVP(TY_ENCODE_INSIDE_PARAM gInside_param)
     stDivpOutputPortAttr.u32Height = gInside_param.resolutionRate.height;
     MI_DIVP_SetOutputPortAttr(gInside_param.DivpChn, &stDivpOutputPortAttr);
 
-    ST_Sys_BindInfo_T stBindInfo;
-    memset(&stBindInfo, 0x0, sizeof(ST_Sys_BindInfo_T));
-    stBindInfo.stSrcChnPort.eModId = E_MI_MODULE_ID_VPE;
-    stBindInfo.stSrcChnPort.u32DevId = 0;
-    stBindInfo.stSrcChnPort.u32ChnId = gInside_param.VpeChn;
-    stBindInfo.stSrcChnPort.u32PortId = 0;
-    stBindInfo.stDstChnPort.eModId = E_MI_MODULE_ID_DIVP;
-    stBindInfo.stDstChnPort.u32DevId = 0;
-    stBindInfo.stDstChnPort.u32ChnId = gInside_param.DivpChn;
-    stBindInfo.stDstChnPort.u32PortId = 0;
-    stBindInfo.u32SrcFrmrate = 30;
-    stBindInfo.u32DstFrmrate = 30;
-    stBindInfo.eBindType = E_MI_SYS_BIND_TYPE_FRAME_BASE;
-    STCHECKRESULT(ST_Sys_Bind(&stBindInfo));
+    // ST_Sys_BindInfo_T stBindInfo;
+    // memset(&stBindInfo, 0x0, sizeof(ST_Sys_BindInfo_T));
+    // stBindInfo.stSrcChnPort.eModId = E_MI_MODULE_ID_VPE;
+    // stBindInfo.stSrcChnPort.u32DevId = 0;
+    // stBindInfo.stSrcChnPort.u32ChnId = gInside_param.VpeChn;
+    // stBindInfo.stSrcChnPort.u32PortId = 0;
+    // stBindInfo.stDstChnPort.eModId = E_MI_MODULE_ID_DIVP;
+    // stBindInfo.stDstChnPort.u32DevId = 0;
+    // stBindInfo.stDstChnPort.u32ChnId = gInside_param.DivpChn;
+    // stBindInfo.stDstChnPort.u32PortId = 0;
+    // stBindInfo.u32SrcFrmrate = 30;
+    // stBindInfo.u32DstFrmrate = 30;
+    // stBindInfo.eBindType = E_MI_SYS_BIND_TYPE_FRAME_BASE;
+    // STCHECKRESULT(ST_Sys_Bind(&stBindInfo));
 }
 
 static int initVENC(TY_ENCODE_INSIDE_PARAM gInside_param)
@@ -158,8 +208,6 @@ static int initVENC(TY_ENCODE_INSIDE_PARAM gInside_param)
     ST_Venc_StartChannel(gInside_param.VencChn);
 
     MI_VENC_GetChnDevid(gInside_param.VencChn, &gInside_param.u32VencDevId);
-    printf("gInside_param.VencChn : %d \n",gInside_param.VencChn);
-    printf("gInside_param.u32VencDevId : %d \n",gInside_param.u32VencDevId);
     // vpe port 2 can not attach osd, so use divp
     ST_Sys_BindInfo_T stBindInfo;
     memset(&stBindInfo, 0x0, sizeof(ST_Sys_BindInfo_T));
@@ -179,59 +227,74 @@ static int initVENC(TY_ENCODE_INSIDE_PARAM gInside_param)
     ST_Sys_Bind(&stBindInfo);
 }
 
-static int initVIF(TY_ENCODE_INSIDE_PARAM gInside_param)
+static int deinitVPE(TY_ENCODE_INSIDE_PARAM *insideParam)
 {
-    STCHECKRESULT(ST_Sys_Init());
+    ST_Sys_BindInfo_T stBindInfo;
+    memset(&stBindInfo, 0x0, sizeof(ST_Sys_BindInfo_T));
+    stBindInfo.stSrcChnPort.eModId = E_MI_MODULE_ID_VIF;
+    stBindInfo.stSrcChnPort.u32DevId = insideParam->vifDev;
+    stBindInfo.stSrcChnPort.u32ChnId = insideParam->vifChn;
+    stBindInfo.stSrcChnPort.u32PortId = insideParam->u32InputPort;
 
-    MI_SNR_PAD_ID_e eSnrPadId;
-    MI_SNR_PADInfo_t stPad0Info;
-    MI_SNR_PlaneInfo_t stSnrPlane0Info;
-    MI_U32 u32CapWidth = 0, u32CapHeight = 0;
-    MI_VIF_FrameRate_e eFrameRate = E_MI_VIF_FRAMERATE_FULL;
-    MI_SYS_PixelFormat_e ePixFormat;
+    stBindInfo.stDstChnPort.eModId = E_MI_MODULE_ID_VPE;
+    stBindInfo.stDstChnPort.u32DevId = 0;
+    stBindInfo.stDstChnPort.u32ChnId = insideParam->VpeChn;
+    stBindInfo.stDstChnPort.u32PortId = insideParam->u32InputPort;
 
-    eSnrPadId = E_MI_SNR_PAD_ID_0;
-    MI_SNR_SetRes(eSnrPadId, 0);
-    MI_SNR_Enable(eSnrPadId);
-    MI_SNR_GetPadInfo(eSnrPadId, &stPad0Info);
-    MI_SNR_GetPlaneInfo(eSnrPadId, 0, &stSnrPlane0Info);
+    stBindInfo.u32SrcFrmrate = 30;
+    stBindInfo.u32DstFrmrate = 30;
+    stBindInfo.eBindType = E_MI_SYS_BIND_TYPE_FRAME_BASE;
+    ST_Sys_UnBind(&stBindInfo);
 
-    u32CapWidth = stSnrPlane0Info.stCapRect.u16Width;
-    u32CapHeight = stSnrPlane0Info.stCapRect.u16Height;
-    eFrameRate = E_MI_VIF_FRAMERATE_FULL;
-    ePixFormat = (MI_SYS_PixelFormat_e)RGB_BAYER_PIXEL(stSnrPlane0Info.ePixPrecision, stSnrPlane0Info.eBayerId);
+    ST_Vpe_StopPort(insideParam->VpeChn, 0);
+    ST_Vpe_StopChannel(insideParam->VpeChn);
+    ST_Vpe_DestroyChannel(insideParam->VpeChn);
 
-    MI_VIF_DevAttr_t stDevAttr;
-    memset(&stDevAttr, 0x0, sizeof(MI_VIF_DevAttr_t));
-    stDevAttr.eIntfMode = stPad0Info.eIntfMode;
-    stDevAttr.eWorkMode = E_MI_VIF_WORK_MODE_RGB_FRAMEMODE;
-    stDevAttr.eHDRType = E_MI_VIF_HDR_TYPE_OFF;
-    stDevAttr.eDataSeq = stPad0Info.unIntfAttr.stMipiAttr.eDataYUVOrder;
-    stDevAttr.eBitOrder = E_MI_VIF_BITORDER_NORMAL;
-
-    ExecFunc(MI_VIF_SetDevAttr(gInside_param.vifDev, &stDevAttr), MI_SUCCESS);
-    ExecFunc(MI_VIF_EnableDev(gInside_param.vifDev), MI_SUCCESS);
-
-    ST_VIF_PortInfo_T stVifPortInfoInfo;
-    memset(&stVifPortInfoInfo, 0, sizeof(ST_VIF_PortInfo_T));
-    stVifPortInfoInfo.u32RectX = stSnrPlane0Info.stCapRect.u16X;
-    stVifPortInfoInfo.u32RectY = stSnrPlane0Info.stCapRect.u16Y;
-    stVifPortInfoInfo.u32RectWidth = u32CapWidth;
-    stVifPortInfoInfo.u32RectHeight = u32CapHeight;
-    stVifPortInfoInfo.u32DestWidth = u32CapWidth;
-    stVifPortInfoInfo.u32DestHeight = u32CapHeight;
-    stVifPortInfoInfo.eFrameRate = eFrameRate;
-    stVifPortInfoInfo.ePixFormat = ePixFormat; //E_MI_SYS_PIXEL_FRAME_RGB_BAYER_12BPP_GR;
-    STCHECKRESULT(ST_Vif_CreatePort(gInside_param.vifChn, 0, &stVifPortInfoInfo));
-    STCHECKRESULT(ST_Vif_StartPort(0, gInside_param.vifChn, 0));
-
-    MI_ModuleId_e eVifModeId = E_MI_MODULE_ID_VIF;
-    MI_U8 u8MmaHeap[128] = "mma_heap_name0";
-    MI_SYS_SetChnMMAConf(eVifModeId, 0, gInside_param.DivpChn, u8MmaHeap);
-
-    gInside_param.ePixFormat = ePixFormat;
+    ST_Vif_StopPort(insideParam->vifChn, 0);
+    ST_Vif_DisableDev(insideParam->vifDev);
 }
-static int encodeGetData(TY_NOVA_ENCODER *encode)
+static int deinitDIVP(TY_ENCODE_INSIDE_PARAM *insideParam)
+{
+    ST_Sys_BindInfo_T stBindInfo;
+    memset(&stBindInfo, 0x0, sizeof(ST_Sys_BindInfo_T));
+    stBindInfo.stSrcChnPort.eModId = E_MI_MODULE_ID_VPE;
+    stBindInfo.stSrcChnPort.u32DevId = 0;
+    stBindInfo.stSrcChnPort.u32ChnId = insideParam->VpeChn;
+    stBindInfo.stSrcChnPort.u32PortId = 0;
+    stBindInfo.stDstChnPort.eModId = E_MI_MODULE_ID_DIVP;
+    stBindInfo.stDstChnPort.u32DevId = 0;
+    stBindInfo.stDstChnPort.u32ChnId = insideParam->DivpChn;
+    stBindInfo.stDstChnPort.u32PortId = 0;
+    stBindInfo.u32SrcFrmrate = 30;
+    stBindInfo.u32DstFrmrate = 30;
+    stBindInfo.eBindType = E_MI_SYS_BIND_TYPE_FRAME_BASE;
+    ST_Sys_UnBind(&stBindInfo);
+    MI_DIVP_StopChn(insideParam->DivpChn);
+    MI_DIVP_DestroyChn(insideParam->DivpChn);
+}
+static int deinitVENC(TY_ENCODE_INSIDE_PARAM *insideParam)
+{
+    ST_Sys_BindInfo_T stBindInfo;
+    memset(&stBindInfo, 0x0, sizeof(ST_Sys_BindInfo_T));
+    stBindInfo.stSrcChnPort.eModId = E_MI_MODULE_ID_DIVP;
+    stBindInfo.stSrcChnPort.u32DevId = 0;
+    stBindInfo.stSrcChnPort.u32ChnId = insideParam->DivpChn;
+    stBindInfo.stSrcChnPort.u32PortId = 0;
+
+    stBindInfo.stDstChnPort.eModId = E_MI_MODULE_ID_VENC;
+    stBindInfo.stDstChnPort.u32DevId = insideParam->u32VencDevId;
+    stBindInfo.stDstChnPort.u32ChnId = insideParam->VencChn;
+    stBindInfo.stDstChnPort.u32PortId = 0;
+
+    stBindInfo.u32SrcFrmrate = 30;
+    stBindInfo.u32DstFrmrate = 30;
+    ST_Sys_UnBind(&stBindInfo);
+
+    ST_Venc_StopChannel(insideParam->VencChn);
+    ST_Venc_DestoryChannel(insideParam->VencChn);
+}
+
+static int encodeGetCompressData(TY_NOVA_ENCODER *encode)
 {
     MI_SYS_BufInfo_t stBufInfo;
     MI_S32 s32Ret = MI_SUCCESS;
@@ -271,7 +334,7 @@ static int encodeGetData(TY_NOVA_ENCODER *encode)
         printf("len : %d \n", len);
         encoder->option.outdata.frameLen = len;
         data = (char *)malloc(len);
-        memcpy(data, stStream.pstPack[0].pu8Addr,len);
+        memcpy(data, stStream.pstPack[0].pu8Addr, len);
         encoder->option.outdata.buf = data;
         s32Ret = MI_VENC_ReleaseStream(vencChn, &stStream);
         if (s32Ret != MI_SUCCESS)
@@ -282,79 +345,133 @@ static int encodeGetData(TY_NOVA_ENCODER *encode)
         return len;
     }
 }
-static int encodePutData(TY_ENCODE_INSIDE_PARAM *encoder)
+static int encodeOutputYUVData(TY_NOVA_ENCODER *encode)
 {
+    TY_NOVA_ENCODER *encoder;
+    encoder = (TY_NOVA_ENCODER *)encode;
+
+    MI_S32 s32Fd = 0;
+    MI_U32 ret = 0;
+    MI_SYS_BufInfo_t stBufInfo;
+    fd_set read_fds;
+    struct timeval TimeoutVal;
+    MI_SYS_BUF_HANDLE hHandle;
+
+    MI_SYS_ChnPort_t stChnPort;
+    memset(&stChnPort, 0x0, sizeof(MI_SYS_ChnPort_t));
+    stChnPort.eModId = E_MI_MODULE_ID_VPE;
+    stChnPort.u32DevId = 0;
+    stChnPort.u32ChnId = encoder->insideParam.VpeChn;
+    stChnPort.u32PortId = 0;
+
+    ret = MI_SYS_SetChnOutputPortDepth(&stChnPort, 2, 3);
+    if (MI_SUCCESS != ret)
+    {
+        ST_ERR("MI_SYS_SetChnOutputPortDepth err:%x, chn:%d,port:%d\n", ret, stChnPort.u32ChnId, stChnPort.u32PortId);
+        return -1;
+    }
+
+    ret = MI_SYS_GetFd(&stChnPort, &s32Fd);
+    if (MI_SUCCESS != ret)
+    {
+        ST_ERR("MI_SYS_GetFd 0, error, %X\n", ret);
+        return -1;
+    }
+
+    // while (1)
+    {
+        FD_ZERO(&read_fds);
+        FD_SET(s32Fd, &read_fds);
+        TimeoutVal.tv_sec = 1;
+        TimeoutVal.tv_usec = 0;
+        ret = select(s32Fd + 1, &read_fds, NULL, NULL, &TimeoutVal);
+        if (ret < 0)
+        {
+            ST_ERR("select failed!\n"); // usleep(10 * 1000); continue;
+            // continue;
+        }
+        else if (ret == 0)
+        {
+            ST_ERR("get vif frame time out\n"); //usleep(10 * 1000);
+            // continue;
+        }
+        else
+        {
+            if (FD_ISSET(s32Fd, &read_fds))
+            {
+                memset(&stBufInfo, 0, sizeof(MI_SYS_BufInfo_t));
+                ret = MI_SYS_ChnOutputPortGetBuf(&stChnPort, &stBufInfo, &hHandle);
+                if (ret != MI_SUCCESS)
+                {
+                    MI_SYS_ChnOutputPortPutBuf(hHandle);
+                    // continue;
+                }
+                else
+                {
+                    int size = stBufInfo.stFrameData.u32BufSize;
+                    printf("size : %d \n", size);
+                    encode->option.yuvOutputData.bufSize = stBufInfo.stFrameData.u32BufSize;
+                    encode->option.yuvOutputData.pVireAddr[0] = stBufInfo.stFrameData.pVirAddr[0];
+
+                    MI_SYS_ChnOutputPortPutBuf(hHandle);
+                }
+            }
+        }
+    }
 }
 
-static int deinitVPE(TY_ENCODE_INSIDE_PARAM *gInside_param)
+static int encodeInputYUVData(TY_NOVA_ENCODER *encode)
 {
-    ST_Sys_BindInfo_T stBindInfo;
-    memset(&stBindInfo, 0x0, sizeof(ST_Sys_BindInfo_T));
-    stBindInfo.stSrcChnPort.eModId = E_MI_MODULE_ID_VIF;
-    stBindInfo.stSrcChnPort.u32DevId = gInside_param->vifDev;
-    stBindInfo.stSrcChnPort.u32ChnId = gInside_param->vifChn;
-    stBindInfo.stSrcChnPort.u32PortId = gInside_param->u32InputPort;
+    TY_NOVA_ENCODER *encoder;
+    encoder = (TY_NOVA_ENCODER *)encode;
 
-    stBindInfo.stDstChnPort.eModId = E_MI_MODULE_ID_VPE;
-    stBindInfo.stDstChnPort.u32DevId = 0;
-    stBindInfo.stDstChnPort.u32ChnId = gInside_param->VpeChn;
-    stBindInfo.stDstChnPort.u32PortId = gInside_param->u32InputPort;
+    MI_S32 s32Fd = 0;
+    MI_U32 ret = 0;
+    MI_SYS_BufInfo_t stBufInfo;
+    fd_set read_fds;
+    struct timeval TimeoutVal;
 
-    stBindInfo.u32SrcFrmrate = 30;
-    stBindInfo.u32DstFrmrate = 30;
-    stBindInfo.eBindType = E_MI_SYS_BIND_TYPE_FRAME_BASE;
-    ST_Sys_UnBind(&stBindInfo);
+    struct timeval stTv;
+    MI_SYS_ChnPort_t stDivpChnInput;
+    MI_SYS_BufConf_t stDivpBufConf;
+    MI_SYS_BufInfo_t stDivpBufInfo;
+    MI_SYS_BUF_HANDLE hDivpHandle;
 
-    ST_Vif_StopPort(gInside_param->vifChn,0);
-    ST_Vif_DisableDev(gInside_param->vifDev);
+    memset(&stDivpChnInput, 0, sizeof(MI_SYS_ChnPort_t));
+    stDivpChnInput.eModId = E_MI_MODULE_ID_DIVP;
+    stDivpChnInput.u32DevId = 0;
+    stDivpChnInput.u32ChnId = encode->insideParam.DivpChn;
+    stDivpChnInput.u32PortId = 0;
+
+    memset(&stDivpBufConf, 0, sizeof(MI_SYS_BufConf_t));
+    stDivpBufConf.eBufType = E_MI_SYS_BUFDATA_FRAME;
+    gettimeofday(&stTv, NULL);
+    stDivpBufConf.u64TargetPts = stTv.tv_sec * 1000000 + stTv.tv_usec;
+    stDivpBufConf.stFrameCfg.eFormat = E_MI_SYS_PIXEL_FRAME_YUV_SEMIPLANAR_420;
+    stDivpBufConf.stFrameCfg.eFrameScanMode = E_MI_SYS_FRAME_SCAN_MODE_PROGRESSIVE;
+    stDivpBufConf.stFrameCfg.u16Width = encode->option.resolutionRate.width;
+    stDivpBufConf.stFrameCfg.u16Height = encode->option.resolutionRate.height;
+
+    ret = MI_SYS_ChnInputPortGetBuf(&stDivpChnInput, &stDivpBufConf, &stDivpBufInfo, &hDivpHandle, 0);
+    if (ret == 0)
+    {
+        stDivpBufInfo.stFrameData.pVirAddr[0] = encode->option.yuvInputData.pVireAddr[0];
+    }
+
+    ret = MI_SYS_ChnInputPortPutBuf(hDivpHandle, &stDivpBufInfo, FALSE);
+
+    return ret;
 }
-static int deinitDIVP(TY_ENCODE_INSIDE_PARAM *insideParam)
+static int encodeDestroy(void *encoder)
 {
-    ST_Sys_BindInfo_T stBindInfo;
-    memset(&stBindInfo, 0x0, sizeof(ST_Sys_BindInfo_T));
-    stBindInfo.stSrcChnPort.eModId = E_MI_MODULE_ID_VPE;
-    stBindInfo.stSrcChnPort.u32DevId = 0;
-    stBindInfo.stSrcChnPort.u32ChnId = insideParam->VpeChn;
-    stBindInfo.stSrcChnPort.u32PortId = 0;
-    stBindInfo.stDstChnPort.eModId = E_MI_MODULE_ID_DIVP;
-    stBindInfo.stDstChnPort.u32DevId = 0;
-    stBindInfo.stDstChnPort.u32ChnId = insideParam->DivpChn;
-    stBindInfo.stDstChnPort.u32PortId = 0;
-    stBindInfo.u32SrcFrmrate = 30;
-    stBindInfo.u32DstFrmrate = 30;
-    stBindInfo.eBindType = E_MI_SYS_BIND_TYPE_FRAME_BASE;
-    ST_Sys_UnBind(&stBindInfo);
-
-    ST_Vpe_StopPort(insideParam->VpeChn, 0);
-    ST_Vpe_StopChannel(insideParam->VpeChn);
-    ST_Vpe_DestroyChannel(insideParam->VpeChn);
-
+    TY_NOVA_ENCODER *encode;
+    encode = (TY_NOVA_ENCODER *)encoder;
+    deinitVENC(&(encode->insideParam));
+    deinitDIVP(&(encode->insideParam));
+    deinitVPE(&(encode->insideParam));
+    ST_Sys_Exit();
 }
-static int deinitVENC(TY_ENCODE_INSIDE_PARAM *insideParam)
-{
-    ST_Sys_BindInfo_T stBindInfo;
-    memset(&stBindInfo, 0x0, sizeof(ST_Sys_BindInfo_T));
-    stBindInfo.stSrcChnPort.eModId = E_MI_MODULE_ID_DIVP;
-    stBindInfo.stSrcChnPort.u32DevId = 0;
-    stBindInfo.stSrcChnPort.u32ChnId = insideParam->DivpChn;
-    stBindInfo.stSrcChnPort.u32PortId = 0;
 
-    stBindInfo.stDstChnPort.eModId = E_MI_MODULE_ID_VENC;
-    stBindInfo.stDstChnPort.u32DevId = insideParam->u32VencDevId;
-    stBindInfo.stDstChnPort.u32ChnId = insideParam->VencChn;
-    stBindInfo.stDstChnPort.u32PortId = 0;
-
-    stBindInfo.u32SrcFrmrate = 30;
-    stBindInfo.u32DstFrmrate = 30;
-    ST_Sys_UnBind(&stBindInfo);
-
-
-    ST_Venc_StopChannel(insideParam->VencChn);
-    ST_Venc_DestoryChannel(insideParam->VencChn);
-
-    MI_DIVP_StopChn(insideParam->DivpChn);  
-    MI_DIVP_DestroyChn(insideParam->DivpChn);
-}
 
 static int encodeCreate(void *encoder)
 {
@@ -386,7 +503,7 @@ static int encodeCreate(void *encoder)
     else if (option.inputDataType == YUV_SEMIPLANAR_422)
     {
         gInside_param.inputYUVType = E_MI_SYS_PIXEL_FRAME_YUV_SEMIPLANAR_422;
-    }    
+    }
     encode->insideParam = gInside_param;
 
     initVIF(gInside_param);
@@ -395,13 +512,154 @@ static int encodeCreate(void *encoder)
     initVENC(gInside_param);
 }
 
-static int encode_close(void *encoder)
+static int initVIF_General(TY_ENCODE_INSIDE_PARAM gInside_param)
+{
+    initVIF(gInside_param);
+}
+static int initVPE_General(TY_ENCODE_INSIDE_PARAM gInside_param)
+{
+    initVPE(gInside_param);
+}
+static int initVENC_General(TY_ENCODE_INSIDE_PARAM gInside_param)
+{
+    MI_VENC_CHN VencChn = gInside_param.VencChn;
+    MI_U32 u32VencDevId = 0xff;
+
+    MI_VENC_ChnAttr_t stChnAttr;
+    memset(&stChnAttr, 0x0, sizeof(MI_VENC_ChnAttr_t));
+    MI_U32 u32VenBitRate = 1024 * 1024 * 2;
+
+    if (gInside_param.encodeFormat == AV_ENCDOE_ID_H264)
+    {
+        stChnAttr.stVeAttr.eType = E_MI_VENC_MODTYPE_H264E;
+        stChnAttr.stVeAttr.stAttrH264e.u32PicWidth = gInside_param.resolutionRate.width;
+        stChnAttr.stVeAttr.stAttrH264e.u32PicHeight = gInside_param.resolutionRate.height;
+        stChnAttr.stVeAttr.stAttrH264e.u32MaxPicWidth = gInside_param.resolutionRate.width;
+        stChnAttr.stVeAttr.stAttrH264e.u32MaxPicHeight = gInside_param.resolutionRate.height;
+        stChnAttr.stVeAttr.stAttrH264e.u32BFrameNum = 2;
+        stChnAttr.stVeAttr.stAttrH264e.bByFrame = TRUE;
+
+        stChnAttr.stRcAttr.eRcMode = E_MI_VENC_RC_MODE_H264CBR;
+        stChnAttr.stRcAttr.stAttrH264Cbr.u32BitRate = u32VenBitRate;
+        stChnAttr.stRcAttr.stAttrH264Cbr.u32FluctuateLevel = 0;
+        stChnAttr.stRcAttr.stAttrH264Cbr.u32Gop = 30;
+        stChnAttr.stRcAttr.stAttrH264Cbr.u32SrcFrmRateNum = gInside_param.resolutionRate.rate;
+        stChnAttr.stRcAttr.stAttrH264Cbr.u32SrcFrmRateDen = 1;
+        stChnAttr.stRcAttr.stAttrH264Cbr.u32StatTime = 0;
+    }
+    else if (gInside_param.encodeFormat == AV_ENCDOE_ID_H265)
+    {
+        stChnAttr.stVeAttr.eType = E_MI_VENC_MODTYPE_H265E;
+        stChnAttr.stVeAttr.stAttrH265e.u32PicWidth = gInside_param.resolutionRate.width;
+        stChnAttr.stVeAttr.stAttrH265e.u32PicHeight = gInside_param.resolutionRate.height;
+        stChnAttr.stVeAttr.stAttrH265e.u32MaxPicWidth = gInside_param.resolutionRate.width;
+        stChnAttr.stVeAttr.stAttrH265e.u32MaxPicHeight = gInside_param.resolutionRate.height;
+        stChnAttr.stVeAttr.stAttrH265e.u32BFrameNum = 2;
+        stChnAttr.stVeAttr.stAttrH265e.bByFrame = TRUE;
+
+        stChnAttr.stRcAttr.eRcMode = E_MI_VENC_RC_MODE_H265CBR;
+        stChnAttr.stRcAttr.stAttrH265Cbr.u32BitRate = u32VenBitRate;
+        stChnAttr.stRcAttr.stAttrH265Cbr.u32FluctuateLevel = 0;
+        stChnAttr.stRcAttr.stAttrH265Cbr.u32Gop = 30;
+        stChnAttr.stRcAttr.stAttrH265Cbr.u32SrcFrmRateNum = gInside_param.resolutionRate.rate;
+        stChnAttr.stRcAttr.stAttrH265Cbr.u32SrcFrmRateDen = 1;
+        stChnAttr.stRcAttr.stAttrH265Cbr.u32StatTime = 0;
+    }
+
+    ST_Venc_CreateChannel(gInside_param.VencChn, &stChnAttr);
+    ST_Venc_StartChannel(gInside_param.VencChn);
+
+    MI_VENC_GetChnDevid(gInside_param.VencChn, &gInside_param.u32VencDevId);
+    // vpe port 2 can not attach osd, so use divp
+    ST_Sys_BindInfo_T stBindInfo;
+    memset(&stBindInfo, 0x0, sizeof(ST_Sys_BindInfo_T));
+    stBindInfo.stSrcChnPort.eModId = E_MI_MODULE_ID_VPE;
+    stBindInfo.stSrcChnPort.u32DevId = 0;
+    stBindInfo.stSrcChnPort.u32ChnId = gInside_param.VpeChn;
+    stBindInfo.stSrcChnPort.u32PortId = 0;
+
+    stBindInfo.stDstChnPort.eModId = E_MI_MODULE_ID_VENC;
+    stBindInfo.stDstChnPort.u32DevId = gInside_param.u32VencDevId;
+    stBindInfo.stDstChnPort.u32ChnId = gInside_param.VencChn;
+    stBindInfo.stDstChnPort.u32PortId = 0;
+
+    stBindInfo.u32SrcFrmrate = 30;
+    stBindInfo.u32DstFrmrate = 30;
+    stBindInfo.eBindType = E_MI_SYS_BIND_TYPE_FRAME_BASE;
+    ST_Sys_Bind(&stBindInfo);
+}
+static int encodeCreate_General(void *encoder)
 {
     TY_NOVA_ENCODER *encode;
     encode = (TY_NOVA_ENCODER *)encoder;
-    deinitVENC(&(encode->insideParam));
-    deinitDIVP(&(encode->insideParam));
-    deinitVPE(&(encode->insideParam));
+
+    TY_ENCODE_OPTION option = encode->option;
+
+    TY_ENCODE_INSIDE_PARAM gInside_param;
+    memset(&gInside_param, 0, sizeof(TY_ENCODE_INSIDE_PARAM));
+    gInside_param.eHdrType = E_MI_VPE_HDR_TYPE_OFF;
+    gInside_param.vifDev = option.channel;
+    gInside_param.vifChn = gInside_param.vifDev * 4;
+    gInside_param.VpeChn = gInside_param.vifDev;
+    gInside_param.DivpChn = gInside_param.vifDev;
+    gInside_param.VencChn = gInside_param.vifDev * 2;
+    gInside_param.u32InputPort = gInside_param.vifDev;
+
+    gInside_param.resolutionRate.width = option.resolutionRate.width;
+    gInside_param.resolutionRate.height = option.resolutionRate.height;
+    gInside_param.resolutionRate.rate = option.resolutionRate.rate;
+
+    gInside_param.encodeFormat = option.encodeFormat;
+
+    if (option.inputDataType == YUV_SEMIPLANAR_420)
+    {
+        gInside_param.inputYUVType = E_MI_SYS_PIXEL_FRAME_YUV_SEMIPLANAR_420;
+    }
+    else if (option.inputDataType == YUV_SEMIPLANAR_422)
+    {
+        gInside_param.inputYUVType = E_MI_SYS_PIXEL_FRAME_YUV_SEMIPLANAR_422;
+    }
+    encode->insideParam = gInside_param;
+
+    initVIF_General(gInside_param);
+    initVPE_General(gInside_param);
+    initVENC_General(gInside_param);
+}
+static int encodeGetCompressData_General(TY_NOVA_ENCODER *encode)
+{
+    encodeGetCompressData(encode);
+}
+static int deinitVENC_General(TY_ENCODE_INSIDE_PARAM *insideParam)
+{
+    ST_Sys_BindInfo_T stBindInfo;
+    memset(&stBindInfo, 0x0, sizeof(ST_Sys_BindInfo_T));
+    stBindInfo.stSrcChnPort.eModId = E_MI_MODULE_ID_VPE;
+    stBindInfo.stSrcChnPort.u32DevId = 0;
+    stBindInfo.stSrcChnPort.u32ChnId = insideParam->VpeChn;
+    stBindInfo.stSrcChnPort.u32PortId = 0;
+
+    stBindInfo.stDstChnPort.eModId = E_MI_MODULE_ID_VENC;
+    stBindInfo.stDstChnPort.u32DevId = insideParam->u32VencDevId;
+    stBindInfo.stDstChnPort.u32ChnId = insideParam->VencChn;
+    stBindInfo.stDstChnPort.u32PortId = 0;
+
+    stBindInfo.u32SrcFrmrate = 30;
+    stBindInfo.u32DstFrmrate = 30;
+    ST_Sys_UnBind(&stBindInfo);
+
+    ST_Venc_StopChannel(insideParam->VencChn);
+    ST_Venc_DestoryChannel(insideParam->VencChn);
+}
+static int deinitVPE_General(TY_ENCODE_INSIDE_PARAM *gInside_param)
+{
+    deinitVPE(gInside_param);
+}
+static int encodeDestroy_General(void *encoder)
+{
+    TY_NOVA_ENCODER *encode;
+    encode = (TY_NOVA_ENCODER *)encoder;
+    deinitVENC_General(&(encode->insideParam));
+    deinitVPE_General(&(encode->insideParam));
     ST_Sys_Exit();
 }
 
@@ -435,9 +693,16 @@ TY_NOVA_ENCODER_QUEUE *nova_encoder(TY_NOVA_ENCODER *NOVA_encoder)
     encode_queue = nova_encoder_alloc(1);
     encode_queue->encoders = NOVA_encoder;
 
-    NOVA_encoder->close = encode_close;
+    NOVA_encoder->encodeDestroy = encodeDestroy;
     NOVA_encoder->encodeCreate = encodeCreate;
-    NOVA_encoder->encodeGetData = encodeGetData;
+    NOVA_encoder->encodeGetCompressData = encodeGetCompressData;
+    NOVA_encoder->encodeOutputYUVData = encodeOutputYUVData;
+    NOVA_encoder->encodeInputYUVData = encodeInputYUVData;
+
+    NOVA_encoder->encodeCreate_General = encodeCreate_General;
+    NOVA_encoder->encodeGetCompressData_General = encodeGetCompressData_General;
+    NOVA_encoder->encodeDestroy_General = encodeDestroy_General;
+
 
     return encode_queue;
 }

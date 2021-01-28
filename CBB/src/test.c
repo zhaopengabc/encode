@@ -26,6 +26,7 @@ int main()
 
     TY_NOVA_ENCODER_QUEUE *encoder_queue;
     TY_NOVA_ENCODER encoder;
+    memset(&encoder,0,sizeof(TY_NOVA_ENCODER));
     encoder.name = "sigmastar";
     encoder.option.channel = 0;
     encoder.option.inputDataType = YUV_SEMIPLANAR_420;
@@ -36,22 +37,35 @@ int main()
     encoder.option.resolutionRate.rate = 30;
 
     encoder_queue = nova_encoder(&encoder);
-    encoder_queue->encoders->encodeCreate(&encoder);
+    // encoder_queue->encoders->encodeCreate(&encoder);
+    encoder_queue->encoders->encodeCreate_General(&encoder);
 
     nova_pushStream(&pushStream);
     pushStream.param.channel = 0;
     pushStream.param.protocol = RTSP;
+    pushStream.param.compressFormat = H264;
+
+
     while (!g_bExit)
     {
-        sleep(1);
-        encoder_queue->encoders->encodeGetData(&encoder);
+        // encoder_queue->encoders->encodeOutputYUVData(&encoder);
+        // memcpy(&(encoder.option.yuvInputData), &(encoder.option.yuvOutputData),sizeof(encoder.option.yuvOutputData));
+        // encoder_queue->encoders->encodeInputYUVData(&encoder);
 
+        encoder_queue->encoders->encodeGetCompressData_General(&encoder);
+
+        memset(&(pushStream.param.frameData),0,sizeof(pushStream.param.frameData));
         pushStream.param.frameData.len = encoder.option.outdata.frameLen;
-        pushStream.param.frameData.data = encoder.option.outdata.buf;
-        pushStream.pushStream(&pushStream.param);
+        if(pushStream.param.frameData.len > 0)
+        {
+            pushStream.param.frameData.data = encoder.option.outdata.buf;
+            pushStream.pushStream(&pushStream.param);
+        }
+
+        sleep(1);
     }
 
-    encoder_queue->encoders->close(&encoder);
+    encoder_queue->encoders->encodeDestroy(&encoder);
 
     nova_encoder_free(encoder_queue);
 }
