@@ -6,7 +6,7 @@
 static int pushStream(TY_FRAME_PARAM *novaPushStream)
 {
 
-    printf("novaPushStream channel : %d \n",novaPushStream->channel);
+    printf("\n\n\nnovaPushStream channel : %d \n",novaPushStream->channel);
     printf("novaPushStream protocol : %d \n",novaPushStream->protocol);
     printf("novaPushStream len : %d \n",novaPushStream->frameData.len);
     printf("novaPushStream data : %d \n",novaPushStream->frameData.data[0]);
