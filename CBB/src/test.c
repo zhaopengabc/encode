@@ -28,7 +28,7 @@ int main()
     TY_NOVA_ENCODER encoder;
     memset(&encoder,0,sizeof(TY_NOVA_ENCODER));
     encoder.name = "sigmastar";
-    encoder.option.channel = 0;
+    encoder.option.channel = 2;
     encoder.option.inputDataType = YUV_SEMIPLANAR_420;
     encoder.option.mediaType = AVMEDIA_TYPE_VIDEO;
     encoder.option.encodeFormat = AV_ENCDOE_ID_H264;
@@ -53,6 +53,8 @@ int main()
         // encoder_queue->encoders->encodeInputYUVData(&encoder);
 
         encoder_queue->encoders->encodeGetCompressData_General(&encoder);
+        // encoder_queue->encoders->encodeGetCompressData(&encoder);
+
 
         memset(&(pushStream.param.frameData),0,sizeof(pushStream.param.frameData));
         pushStream.param.frameData.len = encoder.option.outdata.frameLen;
@@ -64,8 +66,9 @@ int main()
 
         sleep(1);
     }
+    // encoder_queue->encoders->encodeDestroy(&encoder);
 
-    encoder_queue->encoders->encodeDestroy(&encoder);
+    encoder_queue->encoders->encodeDestroy_General(&encoder);
 
     nova_encoder_free(encoder_queue);
 }

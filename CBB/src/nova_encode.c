@@ -29,7 +29,15 @@ static int initVIF(TY_ENCODE_INSIDE_PARAM gInside_param)
     MI_VIF_FrameRate_e eFrameRate = E_MI_VIF_FRAMERATE_FULL;
     MI_SYS_PixelFormat_e ePixFormat;
 
-    eSnrPadId = E_MI_SNR_PAD_ID_0;
+    if(gInside_param.vifChn == 0)
+    {
+        eSnrPadId = E_MI_SNR_PAD_ID_0;
+    }
+    else
+    {
+        eSnrPadId = E_MI_SNR_PAD_ID_1;
+    }
+    
     MI_SNR_SetRes(eSnrPadId, 0);
     MI_SNR_Enable(eSnrPadId);
     MI_SNR_GetPadInfo(eSnrPadId, &stPad0Info);
@@ -487,8 +495,8 @@ static int encodeCreate(void *encoder)
     gInside_param.vifChn = gInside_param.vifDev * 4;
     gInside_param.VpeChn = gInside_param.vifDev;
     gInside_param.DivpChn = gInside_param.vifDev;
-    gInside_param.VencChn = gInside_param.vifDev * 2;
-    gInside_param.u32InputPort = gInside_param.vifDev;
+    gInside_param.VencChn = gInside_param.vifDev;
+    gInside_param.u32InputPort = 0;
 
     gInside_param.resolutionRate.width = option.resolutionRate.width;
     gInside_param.resolutionRate.height = option.resolutionRate.height;
@@ -602,8 +610,8 @@ static int encodeCreate_General(void *encoder)
     gInside_param.vifChn = gInside_param.vifDev * 4;
     gInside_param.VpeChn = gInside_param.vifDev;
     gInside_param.DivpChn = gInside_param.vifDev;
-    gInside_param.VencChn = gInside_param.vifDev * 2;
-    gInside_param.u32InputPort = gInside_param.vifDev;
+    gInside_param.VencChn = gInside_param.vifDev;
+    gInside_param.u32InputPort = 0;
 
     gInside_param.resolutionRate.width = option.resolutionRate.width;
     gInside_param.resolutionRate.height = option.resolutionRate.height;
