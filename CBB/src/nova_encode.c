@@ -407,10 +407,10 @@ static int encodeGetCompressData(TY_NOVA_ENCODER *encode)
     {
         len = stStream.pstPack[0].u32Len;
         printf("len : %d \n", len);
-        encoder->option.outdata.frameLen = len;
+        encoder->option.compressData.frameLen = len;
         data = (char *)malloc(len);
         memcpy(data, stStream.pstPack[0].pu8Addr, len);
-        encoder->option.outdata.buf = data;
+        encoder->option.compressData.buf = data;
         s32Ret = MI_VENC_ReleaseStream(vencChn, &stStream);
         if (s32Ret != MI_SUCCESS)
         {
@@ -599,11 +599,11 @@ static int encodeCreate(void *encoder)
 
     insideParam.encodeFormat = option.encodeFormat;
 
-    if (option.inputDataType == YUV_SEMIPLANAR_420)
+    if (option.YUVDataType == YUV_SEMIPLANAR_420)
     {
         insideParam.inputYUVType = E_MI_SYS_PIXEL_FRAME_YUV_SEMIPLANAR_420;
     }
-    else if (option.inputDataType == YUV_SEMIPLANAR_422)
+    else if (option.YUVDataType == YUV_SEMIPLANAR_422)
     {
         insideParam.inputYUVType = E_MI_SYS_PIXEL_FRAME_YUV_SEMIPLANAR_422;
     }
@@ -741,11 +741,11 @@ static int encodeCreate_General(void *encoder)
 
     insideParam.encodeFormat = option.encodeFormat;
 
-    if (option.inputDataType == YUV_SEMIPLANAR_420)
+    if (option.YUVDataType == YUV_SEMIPLANAR_420)
     {
         insideParam.inputYUVType = E_MI_SYS_PIXEL_FRAME_YUV_SEMIPLANAR_420;
     }
-    else if (option.inputDataType == YUV_SEMIPLANAR_422)
+    else if (option.YUVDataType == YUV_SEMIPLANAR_422)
     {
         insideParam.inputYUVType = E_MI_SYS_PIXEL_FRAME_YUV_SEMIPLANAR_422;
     }
@@ -903,7 +903,7 @@ int main()
     TY_NOVA_ENCODER encoder;
     encoder.name = "sigmastar";
     encoder.option.channel = 0;
-    encoder.option.inputDataType = YUV_SEMIPLANAR_420;
+    encoder.option.YUVDataType = YUV_SEMIPLANAR_420;
     encoder.option.mediaType = AVMEDIA_TYPE_VIDEO;
     encoder.option.encodeFormat = AV_ENCDOE_ID_H264;
     encoder.option.resolutionRate.width = 1920;
@@ -918,8 +918,8 @@ int main()
         sleep(1);
         // printf("aaaa \n");
         encoder_queue->encoders->encodeGetData(&encoder);
-        // printf("data len : %d \n",encoder.option.outdata.frameLen);
-        // printf("data [0] : %d \n",encoder.option.outdata.buf[0]);
+        // printf("data len : %d \n",encoder.option.compressData.frameLen);
+        // printf("data [0] : %d \n",encoder.option.compressData.buf[0]);
     }
 
     encoder_queue->encoders->close(&encoder);

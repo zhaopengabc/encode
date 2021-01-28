@@ -62,10 +62,10 @@ typedef struct encode_option
 {
     int channel;
     enum AVMediaType mediaType;
-    enum YUVDataType inputDataType;
+    enum YUVDataType YUVDataType;
     enum AVEncodeFormat encodeFormat;
     TY_RESOLUTION_RATE  resolutionRate;
-    TY_ENCODE_OUT_DATA outdata;
+    TY_ENCODE_OUT_DATA compressData;
     TY_YUV_DATA yuvInputData;
     TY_YUV_DATA yuvOutputData;
 }TY_ENCODE_OPTION;
