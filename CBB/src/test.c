@@ -9,6 +9,13 @@
 
 static MI_BOOL g_bExit = FALSE;
 
+/*
+*  Function name : ST_HandleSig 
+*  In            : MI_S32 signo 捕获信号量
+*  Out           : null
+*  Return        : null
+*  Description   : 捕获Ctrl+C的信号量。
+*/
 void ST_HandleSig(MI_S32 signo)
 {
     if (signo == SIGINT)
@@ -18,12 +25,33 @@ void ST_HandleSig(MI_S32 signo)
         g_bExit = TRUE;
     }
 }
-static int processYUVData(TY_YUV_DATA *desData,TY_YUV_DATA *srcData)
+/*
+*  Function name : processYUVData 
+*  In            : TY_YUV_DATA *srcData
+*  Out           : TY_YUV_DATA *desData
+*  Return        : 
+*  Description   : 获取YUV回调函数，可以对YUV进行任何操作
+*/
+static int processYUVData(void *des,void *src)
 {
+    int ret = 0;
+    TY_YUV_DATA *desData;
+    TY_YUV_DATA *srcData;
+    desData = (TY_YUV_DATA *)des;
+    srcData = (TY_YUV_DATA *)src;
     desData->pVirAddr[0] = srcData->pVirAddr[0];
     desData->pVirAddr[1] = srcData->pVirAddr[1];
     desData->pVirAddr[2] = srcData->pVirAddr[2];
+
+    return ret;
 }
+/*
+*  Function name : nova_encode_0 
+*  In            : null
+*  Out           : null
+*  Return        : 
+*  Description   : 操作第一路编码数据。特殊模式
+*/
 void* nova_encode_0(void *argc)
 {
     signal(SIGINT,ST_HandleSig);
@@ -66,13 +94,20 @@ void* nova_encode_0(void *argc)
             pushStream.param.frameData.data = encoder.option.compressData.buf;
             pushStream.pushStream(&pushStream.param);
         }
-
         // sleep(1);
     }
     encoder_queue->encoders->encodeDestroy(&encoder);
 
     nova_encoder_free(encoder_queue);
+    pthread_exit(NULL);
 }
+/*
+*  Function name : nova_encode_0 
+*  In            : null
+*  Out           : null
+*  Return        : 
+*  Description   : 操作第二路编码数据。普通模式。
+*/
 void* nova_encode_2(void *argc)
 {
     signal(SIGINT,ST_HandleSig);
@@ -120,12 +155,14 @@ void* nova_encode_2(void *argc)
     encoder_queue->encoders->encodeDestroy_General(&encoder);
 
     nova_encoder_free(encoder_queue);
+    pthread_exit(NULL);
+
 }
 int main()
 {
     signal(SIGINT,ST_HandleSig);
     pthread_t pThread_1;
-    pthread_t pThread_2;
+    // pthread_t pThread_2;
 
     pthread_create(&pThread_1,NULL,nova_encode_0,NULL);
     // pthread_create(&pThread_2,NULL,nova_encode_2,NULL);

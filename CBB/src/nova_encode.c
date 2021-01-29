@@ -23,6 +23,7 @@
 */
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/time.h>
 #include <signal.h>
 
 #include "nova_encode.h"
@@ -107,6 +108,7 @@ static int initVIF(TY_ENCODE_INSIDE_PARAM insideParam)
 */
 static int initVPE(TY_ENCODE_INSIDE_PARAM insideParam)
 {
+    int ret = 0;
     ST_VPE_ChannelInfo_T stVpeChannelInfo;
 
     memset(&stVpeChannelInfo, 0, sizeof(ST_VPE_ChannelInfo_T));
@@ -121,8 +123,17 @@ static int initVPE(TY_ENCODE_INSIDE_PARAM insideParam)
     stVpeChannelInfo.eHDRtype = insideParam.eHdrType;
     stVpeChannelInfo.eBindSensorId = E_MI_VPE_SENSOR0;
 
-    ST_Vpe_CreateChannel(insideParam.VpeChn, &stVpeChannelInfo);
-    ST_Vpe_StartChannel(insideParam.VpeChn);
+    ret = ST_Vpe_CreateChannel(insideParam.VpeChn, &stVpeChannelInfo);
+    if(ret != 0)
+    {
+        return ret;
+    }
+    ret = ST_Vpe_StartChannel(insideParam.VpeChn);
+    if(ret != 0)
+    {
+        return ret;
+    }
+
     ST_VPE_PortInfo_T stVpePortInfo;
     memset(&stVpePortInfo, 0, sizeof(ST_VPE_PortInfo_T));
 
@@ -131,8 +142,11 @@ static int initVPE(TY_ENCODE_INSIDE_PARAM insideParam)
     stVpePortInfo.u16OutputHeight = insideParam.resolutionRate.height;
     stVpePortInfo.ePixelFormat = insideParam.inputYUVType;
     stVpePortInfo.eCompressMode = E_MI_SYS_COMPRESS_MODE_NONE;
-    ST_Vpe_StartPort(insideParam.u32InputPort, &stVpePortInfo);
-
+    ret = ST_Vpe_StartPort(insideParam.u32InputPort, &stVpePortInfo);
+    if(ret != 0)
+    {
+        return ret;
+    }
     ST_Sys_BindInfo_T stBindInfo;
     memset(&stBindInfo, 0x0, sizeof(ST_Sys_BindInfo_T));
     stBindInfo.stSrcChnPort.eModId = E_MI_MODULE_ID_VIF;
@@ -148,7 +162,8 @@ static int initVPE(TY_ENCODE_INSIDE_PARAM insideParam)
     stBindInfo.u32SrcFrmrate = 30;
     stBindInfo.u32DstFrmrate = 30;
     stBindInfo.eBindType = E_MI_SYS_BIND_TYPE_FRAME_BASE;
-    ST_Sys_Bind(&stBindInfo);
+    ret = ST_Sys_Bind(&stBindInfo);
+    return ret;
 }
 /*
 *  Function name : initDIVP 内部函数
@@ -160,6 +175,7 @@ static int initVPE(TY_ENCODE_INSIDE_PARAM insideParam)
 */
 static int initDIVP(TY_ENCODE_INSIDE_PARAM insideParam)
 {
+    int ret = 0;
     MI_DIVP_ChnAttr_t stDivpChnAttr;
     memset(&stDivpChnAttr, 0x00, sizeof(MI_DIVP_ChnAttr_t));
 
@@ -175,16 +191,23 @@ static int initDIVP(TY_ENCODE_INSIDE_PARAM insideParam)
     stDivpChnAttr.u32MaxWidth = insideParam.resolutionRate.width;
     stDivpChnAttr.u32MaxHeight = insideParam.resolutionRate.height;
 
-    MI_DIVP_CreateChn(insideParam.DivpChn, &stDivpChnAttr);
-    MI_DIVP_StartChn(insideParam.DivpChn);
-
+    ret = MI_DIVP_CreateChn(insideParam.DivpChn, &stDivpChnAttr);
+    if(ret != 0)
+    {
+        return ret;
+    }
+    ret = MI_DIVP_StartChn(insideParam.DivpChn);
+    if(ret != 0)
+    {
+        return ret;
+    }
     MI_DIVP_OutputPortAttr_t stDivpOutputPortAttr;
     stDivpOutputPortAttr.eCompMode = E_MI_SYS_COMPRESS_MODE_NONE;
     stDivpOutputPortAttr.ePixelFormat = insideParam.inputYUVType;
     stDivpOutputPortAttr.u32Width = insideParam.resolutionRate.width;
     stDivpOutputPortAttr.u32Height = insideParam.resolutionRate.height;
-    MI_DIVP_SetOutputPortAttr(insideParam.DivpChn, &stDivpOutputPortAttr);
-
+    ret = MI_DIVP_SetOutputPortAttr(insideParam.DivpChn, &stDivpOutputPortAttr);
+    return ret;
     // ST_Sys_BindInfo_T stBindInfo;
     // memset(&stBindInfo, 0x0, sizeof(ST_Sys_BindInfo_T));
     // stBindInfo.stSrcChnPort.eModId = E_MI_MODULE_ID_VPE;
@@ -209,9 +232,7 @@ static int initDIVP(TY_ENCODE_INSIDE_PARAM insideParam)
 */
 static int initVENC(TY_ENCODE_INSIDE_PARAM insideParam)
 {
-    MI_VENC_CHN VencChn = insideParam.VencChn;
-    MI_U32 u32VencDevId = 0xff;
-
+    int ret = 0;
     MI_VENC_ChnAttr_t stChnAttr;
     memset(&stChnAttr, 0x0, sizeof(MI_VENC_ChnAttr_t));
     MI_U32 u32VenBitRate = 1024 * 1024 * 2;
@@ -253,10 +274,21 @@ static int initVENC(TY_ENCODE_INSIDE_PARAM insideParam)
         stChnAttr.stRcAttr.stAttrH265Cbr.u32StatTime = 0;
     }
 
-    ST_Venc_CreateChannel(insideParam.VencChn, &stChnAttr);
-    ST_Venc_StartChannel(insideParam.VencChn);
-
-    MI_VENC_GetChnDevid(insideParam.VencChn, &insideParam.u32VencDevId);
+    ret = ST_Venc_CreateChannel(insideParam.VencChn, &stChnAttr);
+    if(ret != 0)
+    {
+        return ret;
+    }    
+    ret = ST_Venc_StartChannel(insideParam.VencChn);
+    if(ret != 0)
+    {
+        return ret;
+    }
+    ret = MI_VENC_GetChnDevid(insideParam.VencChn, &insideParam.u32VencDevId);
+    if(ret != 0)
+    {
+        return ret;
+    }
     // vpe port 2 can not attach osd, so use divp
     ST_Sys_BindInfo_T stBindInfo;
     memset(&stBindInfo, 0x0, sizeof(ST_Sys_BindInfo_T));
@@ -273,7 +305,9 @@ static int initVENC(TY_ENCODE_INSIDE_PARAM insideParam)
     stBindInfo.u32SrcFrmrate = 30;
     stBindInfo.u32DstFrmrate = 30;
     stBindInfo.eBindType = E_MI_SYS_BIND_TYPE_FRAME_BASE;
-    ST_Sys_Bind(&stBindInfo);
+    ret = ST_Sys_Bind(&stBindInfo);
+
+    return ret;
 }
 /*
 *  Function name : deinitVPE 内部函数
@@ -284,6 +318,7 @@ static int initVENC(TY_ENCODE_INSIDE_PARAM insideParam)
 */
 static int deinitVPE(TY_ENCODE_INSIDE_PARAM *insideParam)
 {
+    int ret = 0;
     ST_Sys_BindInfo_T stBindInfo;
     memset(&stBindInfo, 0x0, sizeof(ST_Sys_BindInfo_T));
     stBindInfo.stSrcChnPort.eModId = E_MI_MODULE_ID_VIF;
@@ -299,14 +334,33 @@ static int deinitVPE(TY_ENCODE_INSIDE_PARAM *insideParam)
     stBindInfo.u32SrcFrmrate = 30;
     stBindInfo.u32DstFrmrate = 30;
     stBindInfo.eBindType = E_MI_SYS_BIND_TYPE_FRAME_BASE;
-    ST_Sys_UnBind(&stBindInfo);
-
-    ST_Vpe_StopPort(insideParam->VpeChn, 0);
-    ST_Vpe_StopChannel(insideParam->VpeChn);
-    ST_Vpe_DestroyChannel(insideParam->VpeChn);
-
-    ST_Vif_StopPort(insideParam->vifChn, 0);
-    ST_Vif_DisableDev(insideParam->vifDev);
+    ret = ST_Sys_UnBind(&stBindInfo);
+    if(ret != 0)
+    {
+        return ret;
+    }
+    ret = ST_Vpe_StopPort(insideParam->VpeChn, 0);
+    if(ret != 0)
+    {
+        return ret;
+    }
+    ret = ST_Vpe_StopChannel(insideParam->VpeChn);
+    if(ret != 0)
+    {
+        return ret;
+    }    
+    ret = ST_Vpe_DestroyChannel(insideParam->VpeChn);
+    if(ret != 0)
+    {
+        return ret;
+    }
+    ret = ST_Vif_StopPort(insideParam->vifChn, 0);
+    if(ret != 0)
+    {
+        return ret;
+    }
+    ret = ST_Vif_DisableDev(insideParam->vifDev);
+    return ret;
 }
 /*
 *  Function name : deinitDIVP 内部函数
@@ -317,6 +371,7 @@ static int deinitVPE(TY_ENCODE_INSIDE_PARAM *insideParam)
 */
 static int deinitDIVP(TY_ENCODE_INSIDE_PARAM *insideParam)
 {
+    int ret = 0;
     // ST_Sys_BindInfo_T stBindInfo;
     // memset(&stBindInfo, 0x0, sizeof(ST_Sys_BindInfo_T));
     // stBindInfo.stSrcChnPort.eModId = E_MI_MODULE_ID_VPE;
@@ -331,8 +386,14 @@ static int deinitDIVP(TY_ENCODE_INSIDE_PARAM *insideParam)
     // stBindInfo.u32DstFrmrate = 30;
     // stBindInfo.eBindType = E_MI_SYS_BIND_TYPE_FRAME_BASE;
     // ST_Sys_UnBind(&stBindInfo);
-    MI_DIVP_StopChn(insideParam->DivpChn);
-    MI_DIVP_DestroyChn(insideParam->DivpChn);
+    ret = MI_DIVP_StopChn(insideParam->DivpChn);
+    if (ret != 0)
+    {
+        return ret;
+    }
+    ret = MI_DIVP_DestroyChn(insideParam->DivpChn);
+
+    return ret;
 }
 /*
 *  Function name : deinitVENC 内部函数
@@ -343,6 +404,7 @@ static int deinitDIVP(TY_ENCODE_INSIDE_PARAM *insideParam)
 */
 static int deinitVENC(TY_ENCODE_INSIDE_PARAM *insideParam)
 {
+    int ret = 0;
     ST_Sys_BindInfo_T stBindInfo;
     memset(&stBindInfo, 0x0, sizeof(ST_Sys_BindInfo_T));
     stBindInfo.stSrcChnPort.eModId = E_MI_MODULE_ID_DIVP;
@@ -357,10 +419,18 @@ static int deinitVENC(TY_ENCODE_INSIDE_PARAM *insideParam)
 
     stBindInfo.u32SrcFrmrate = 30;
     stBindInfo.u32DstFrmrate = 30;
-    ST_Sys_UnBind(&stBindInfo);
-
-    ST_Venc_StopChannel(insideParam->VencChn);
-    ST_Venc_DestoryChannel(insideParam->VencChn);
+    ret = ST_Sys_UnBind(&stBindInfo);
+    if (ret != 0)
+    {
+        return ret;
+    }
+    ret = ST_Venc_StopChannel(insideParam->VencChn);
+    if (ret != 0)
+    {
+        return ret;
+    }
+    ret = ST_Venc_DestoryChannel(insideParam->VencChn);
+    return ret;
 }
 /*
 *  Function name : encodeGetCompressData 接口函数
@@ -369,7 +439,7 @@ static int deinitVENC(TY_ENCODE_INSIDE_PARAM *insideParam)
 *  Return        : 0 : success; other is error 
 *  Description   : 获取压缩后数据，H264 or H265;数据反馈在encode的结构体里，包含长度和有效数据。
 */
-static int encodeGetCompressData(TY_NOVA_ENCODER *encode)
+static int encodeGetCompressData(void *encode)
 {
     MI_SYS_BufInfo_t stBufInfo;
     MI_S32 s32Ret = MI_SUCCESS;
@@ -427,12 +497,10 @@ static int encodeGetCompressData(TY_NOVA_ENCODER *encode)
 *  Return        : 0 : success; other is error 
 *  Description   : 对外输出YUV数据。从VPE的Outpu获取YUV数据，并且把数据提供给接口层，方便用户操作YUV数据。
 */
-static int encodeOutputYUVData(TY_NOVA_ENCODER *encode)
+static int encodeOutputYUVData(void *encode)
 {
     TY_NOVA_ENCODER *encoder;
     encoder = (TY_NOVA_ENCODER *)encode;
-
-    TY_NOVA_ENCODER tmpEncode;
 
     MI_S32 s32Fd = 0;
     MI_U32 ret = 0;
@@ -524,15 +592,16 @@ static int encodeOutputYUVData(TY_NOVA_ENCODER *encode)
                     yuvOutputData.pVirAddr[1] = stBufInfo.stFrameData.pVirAddr[1];
                     yuvOutputData.pVirAddr[2] = stBufInfo.stFrameData.pVirAddr[2];
 
-                    encode->option.processYUVData(&(yuvInputData),&(yuvOutputData));
+                    encoder->option.processYUVData(&yuvInputData, &yuvOutputData);
 
-                    memcpy(stVencBufInfo.stFrameData.pVirAddr[0],yuvInputData.pVirAddr[0], size);
+                    memcpy(stVencBufInfo.stFrameData.pVirAddr[0], yuvInputData.pVirAddr[0], size);
                     MI_SYS_ChnInputPortPutBuf(hVencHandle, &stVencBufInfo, FALSE);
                     MI_SYS_ChnOutputPortPutBuf(hHandle);
                 }
             }
         }
     }
+    return ret;
 }
 /*
 *  Function name : encodeInputYUVData 接口函数
@@ -594,7 +663,7 @@ static int encodeOutputYUVData(TY_NOVA_ENCODER *encode)
 //     // free(encoder->option.yuvOutputData.pVireAddr[0]);
 //     return ret;
 // }
-// 
+//
 /*
 *  Function name : encodeDestroy 接口函数
 *  In            : YTY_NOVA_ENCODER *encode 唯一结构体
@@ -604,12 +673,27 @@ static int encodeOutputYUVData(TY_NOVA_ENCODER *encode)
 */
 static int encodeDestroy(void *encoder)
 {
+    int ret = 0;
     TY_NOVA_ENCODER *encode;
     encode = (TY_NOVA_ENCODER *)encoder;
-    deinitVENC(&(encode->insideParam));
-    deinitDIVP(&(encode->insideParam));
-    deinitVPE(&(encode->insideParam));
-    ST_Sys_Exit();
+    ret = deinitVENC(&(encode->insideParam));
+    if (ret != 0)
+    {
+        return ret;
+    }
+    ret = deinitDIVP(&(encode->insideParam));
+    if (ret != 0)
+    {
+        return ret;
+    }
+    ret = deinitVPE(&(encode->insideParam));
+    if (ret != 0)
+    {
+        return ret;
+    }
+    ret = ST_Sys_Exit();
+
+    return ret;
 }
 
 /*
@@ -622,6 +706,7 @@ static int encodeDestroy(void *encoder)
 */
 static int encodeCreate(void *encoder)
 {
+    int ret = 0;
     TY_NOVA_ENCODER *encode;
     encode = (TY_NOVA_ENCODER *)encoder;
 
@@ -653,10 +738,23 @@ static int encodeCreate(void *encoder)
     }
     encode->insideParam = insideParam;
 
-    initVIF(insideParam);
-    initVPE(insideParam);
-    initDIVP(insideParam);
-    initVENC(insideParam);
+    ret = initVIF(insideParam);
+    if (ret != 0)
+    {
+        return ret;
+    }
+    ret = initVPE(insideParam);
+    if (ret != 0)
+    {
+        return ret;
+    }
+    ret = initDIVP(insideParam);
+    if (ret != 0)
+    {
+        return ret;
+    }
+    ret = initVENC(insideParam);
+    return ret;
 }
 /*
 *  Function name : initVIF_General 接口函数
@@ -667,7 +765,10 @@ static int encodeCreate(void *encoder)
 */
 static int initVIF_General(TY_ENCODE_INSIDE_PARAM insideParam)
 {
-    initVIF(insideParam);
+    int ret = 0;
+    ret = initVIF(insideParam);
+
+    return ret;
 }
 /*
 *  Function name : initVPE_General 接口函数
@@ -678,7 +779,10 @@ static int initVIF_General(TY_ENCODE_INSIDE_PARAM insideParam)
 */
 static int initVPE_General(TY_ENCODE_INSIDE_PARAM insideParam)
 {
-    initVPE(insideParam);
+    int ret = 0;
+    ret = initVPE(insideParam);
+
+    return ret;
 }
 /*
 *  Function name : initVENC_General 接口函数
@@ -689,13 +793,11 @@ static int initVPE_General(TY_ENCODE_INSIDE_PARAM insideParam)
 */
 static int initVENC_General(TY_ENCODE_INSIDE_PARAM insideParam)
 {
-    MI_VENC_CHN VencChn = insideParam.VencChn;
-    MI_U32 u32VencDevId = 0xff;
+    int ret = 0;
 
     MI_VENC_ChnAttr_t stChnAttr;
     memset(&stChnAttr, 0x0, sizeof(MI_VENC_ChnAttr_t));
     MI_U32 u32VenBitRate = 1024 * 1024 * 2;
-
     if (insideParam.encodeFormat == AV_ENCDOE_ID_H264)
     {
         stChnAttr.stVeAttr.eType = E_MI_VENC_MODTYPE_H264E;
@@ -733,10 +835,21 @@ static int initVENC_General(TY_ENCODE_INSIDE_PARAM insideParam)
         stChnAttr.stRcAttr.stAttrH265Cbr.u32StatTime = 0;
     }
 
-    ST_Venc_CreateChannel(insideParam.VencChn, &stChnAttr);
-    ST_Venc_StartChannel(insideParam.VencChn);
-
-    MI_VENC_GetChnDevid(insideParam.VencChn, &insideParam.u32VencDevId);
+    ret = ST_Venc_CreateChannel(insideParam.VencChn, &stChnAttr);
+    if (ret != 0)
+    {
+        return ret;
+    }
+    ret = ST_Venc_StartChannel(insideParam.VencChn);
+    if (ret != 0)
+    {
+        return ret;
+    }
+    ret = MI_VENC_GetChnDevid(insideParam.VencChn, &insideParam.u32VencDevId);
+    if (ret != 0)
+    {
+        return ret;
+    }
     // vpe port 2 can not attach osd, so use divp
     ST_Sys_BindInfo_T stBindInfo;
     memset(&stBindInfo, 0x0, sizeof(ST_Sys_BindInfo_T));
@@ -753,7 +866,9 @@ static int initVENC_General(TY_ENCODE_INSIDE_PARAM insideParam)
     stBindInfo.u32SrcFrmrate = 30;
     stBindInfo.u32DstFrmrate = 30;
     stBindInfo.eBindType = E_MI_SYS_BIND_TYPE_FRAME_BASE;
-    ST_Sys_Bind(&stBindInfo);
+    ret = ST_Sys_Bind(&stBindInfo);
+
+    return ret;
 }
 /*
 *  Function name : encodeCreate_General 接口函数
@@ -764,6 +879,7 @@ static int initVENC_General(TY_ENCODE_INSIDE_PARAM insideParam)
 */
 static int encodeCreate_General(void *encoder)
 {
+    int ret = 0;
     TY_NOVA_ENCODER *encode;
     encode = (TY_NOVA_ENCODER *)encoder;
 
@@ -795,9 +911,18 @@ static int encodeCreate_General(void *encoder)
     }
     encode->insideParam = insideParam;
 
-    initVIF_General(insideParam);
-    initVPE_General(insideParam);
-    initVENC_General(insideParam);
+    ret = initVIF_General(insideParam);
+    if (ret != 0)
+    {
+        return ret;
+    }
+    ret = initVPE_General(insideParam);
+    if (ret != 0)
+    {
+        return ret;
+    }
+    ret = initVENC_General(insideParam);
+    return ret;
 }
 /*
 *  Function name : encodeGetCompressData 接口函数
@@ -806,9 +931,11 @@ static int encodeCreate_General(void *encoder)
 *  Return        : 0 : success; other is error 
 *  Description   : 获取压缩后数据，H264 or H265;数据反馈在encode的结构体里，包含长度和有效数据。和普通模式保持一致
 */
-static int encodeGetCompressData_General(TY_NOVA_ENCODER *encode)
+static int encodeGetCompressData_General(void *encode)
 {
-    encodeGetCompressData(encode);
+    int ret = 0;
+    ret = encodeGetCompressData(encode);
+    return ret;
 }
 /*
 *  Function name : deinitVENC_General 接口函数
@@ -820,6 +947,7 @@ static int encodeGetCompressData_General(TY_NOVA_ENCODER *encode)
 static int deinitVENC_General(TY_ENCODE_INSIDE_PARAM *insideParam)
 {
     ST_Sys_BindInfo_T stBindInfo;
+    int ret = 0;
     memset(&stBindInfo, 0x0, sizeof(ST_Sys_BindInfo_T));
     stBindInfo.stSrcChnPort.eModId = E_MI_MODULE_ID_VPE;
     stBindInfo.stSrcChnPort.u32DevId = 0;
@@ -833,10 +961,19 @@ static int deinitVENC_General(TY_ENCODE_INSIDE_PARAM *insideParam)
 
     stBindInfo.u32SrcFrmrate = 30;
     stBindInfo.u32DstFrmrate = 30;
-    ST_Sys_UnBind(&stBindInfo);
+    ret = ST_Sys_UnBind(&stBindInfo);
+    if (ret != 0)
+    {
+        return ret;
+    }
+    ret = ST_Venc_StopChannel(insideParam->VencChn);
+    if (ret != 0)
+    {
+        return ret;
+    }
+    ret = ST_Venc_DestoryChannel(insideParam->VencChn);
 
-    ST_Venc_StopChannel(insideParam->VencChn);
-    ST_Venc_DestoryChannel(insideParam->VencChn);
+    return ret;
 }
 /*
 *  Function name : deinitVPE_General 接口函数
@@ -847,7 +984,10 @@ static int deinitVENC_General(TY_ENCODE_INSIDE_PARAM *insideParam)
 */
 static int deinitVPE_General(TY_ENCODE_INSIDE_PARAM *insideParam)
 {
-    deinitVPE(insideParam);
+    int ret = 0;
+    ret = deinitVPE(insideParam);
+
+    return ret;
 }
 /*
 *  Function name : encodeDestroy_General 接口函数
@@ -863,6 +1003,8 @@ static int encodeDestroy_General(void *encoder)
     deinitVENC_General(&(encode->insideParam));
     deinitVPE_General(&(encode->insideParam));
     ST_Sys_Exit();
+
+    return 0;
 }
 /*
 *  Function name : nova_encoder_alloc 接口函数

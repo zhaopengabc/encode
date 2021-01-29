@@ -25,16 +25,20 @@ static int pushStream(TY_FRAME_PARAM *novaPushStream)
 	if ((fpSave = fopen(filename, "ab")) == NULL) //h264保存的文件名  
 	{
 		printf("Unable to open %s...\n", filename);
-		return;
+		return -1;
 	}
 	fwrite(novaPushStream->frameData.data, 1, novaPushStream->frameData.len, fpSave);//写数据到文件中
 	fclose(fpSave);
+
+    return 0;
 }
 
 
 int nova_pushStream(TY_NOVA_PUSH_STREAM *novaPushStream)
 {
     novaPushStream->pushStream = pushStream;
+
+    return 0;
 }
 
 // int main()

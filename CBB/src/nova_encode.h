@@ -169,5 +169,7 @@ typedef struct nova_encoder_queue
     TY_NOVA_ENCODER *encoders;
 }TY_NOVA_ENCODER_QUEUE;
 
-
+TY_NOVA_ENCODER_QUEUE *nova_encoder(TY_NOVA_ENCODER *NOVA_encoder);
+TY_NOVA_ENCODER_QUEUE *nova_encoder_alloc(unsigned int decoderSize);
+void nova_encoder_free(TY_NOVA_ENCODER_QUEUE *decoderQueue);
 #endif /*NOVA_ENCODE_H*/
