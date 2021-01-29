@@ -406,7 +406,6 @@ static int encodeGetCompressData(TY_NOVA_ENCODER *encode)
     if (MI_SUCCESS == s32Ret)
     {
         len = stStream.pstPack[0].u32Len;
-        printf("len : %d \n", len);
         encoder->option.compressData.frameLen = len;
         data = (char *)malloc(len);
         memcpy(data, stStream.pstPack[0].pu8Addr, len);
@@ -539,59 +538,60 @@ static int encodeOutputYUVData(TY_NOVA_ENCODER *encode)
 *  Return        : 0 : success; other is error 
 *  Description   : 用户输入YUV数据到编码器中，用户层把YUV数据输入到编码器。
 */
-static int encodeInputYUVData(TY_NOVA_ENCODER *encode)
-{
-    TY_NOVA_ENCODER *encoder;
-    encoder = (TY_NOVA_ENCODER *)encode;
+// static int encodeInputYUVData(TY_NOVA_ENCODER *encode)
+// {
+//     TY_NOVA_ENCODER *encoder;
+//     encoder = (TY_NOVA_ENCODER *)encode;
 
-    MI_S32 s32Fd = 0;
-    MI_U32 ret = 0;
-    MI_SYS_BufInfo_t stBufInfo;
-    fd_set read_fds;
-    struct timeval TimeoutVal;
+//     MI_S32 s32Fd = 0;
+//     MI_U32 ret = 0;
+//     MI_SYS_BufInfo_t stBufInfo;
+//     fd_set read_fds;
+//     struct timeval TimeoutVal;
 
-    struct timeval stTv;
-    MI_SYS_ChnPort_t stDivpChnInput;
-    MI_SYS_BufConf_t stDivpBufConf;
-    MI_SYS_BufInfo_t stDivpBufInfo;
-    MI_SYS_BUF_HANDLE hDivpHandle;
-    MI_U32 u32DevId = 0;
+//     struct timeval stTv;
+//     MI_SYS_ChnPort_t stDivpChnInput;
+//     MI_SYS_BufConf_t stDivpBufConf;
+//     MI_SYS_BufInfo_t stDivpBufInfo;
+//     MI_SYS_BUF_HANDLE hDivpHandle;
+//     MI_U32 u32DevId = 0;
 
-    // MI_VENC_GetChnDevid(encode->insideParam.DivpChn, &u32DevId);
+//     // MI_VENC_GetChnDevid(encode->insideParam.DivpChn, &u32DevId);
 
-    memset(&stDivpChnInput, 0, sizeof(MI_SYS_ChnPort_t));
-    stDivpChnInput.eModId = E_MI_MODULE_ID_DIVP;
-    stDivpChnInput.u32DevId = 0;
-    stDivpChnInput.u32ChnId = encode->insideParam.DivpChn;
-    stDivpChnInput.u32PortId = 0;
+//     memset(&stDivpChnInput, 0, sizeof(MI_SYS_ChnPort_t));
+//     stDivpChnInput.eModId = E_MI_MODULE_ID_DIVP;
+//     stDivpChnInput.u32DevId = 0;
+//     stDivpChnInput.u32ChnId = encode->insideParam.DivpChn;
+//     stDivpChnInput.u32PortId = 0;
 
-    memset(&stDivpBufConf, 0, sizeof(MI_SYS_BufConf_t));
-    stDivpBufConf.eBufType = E_MI_SYS_BUFDATA_FRAME;
-    gettimeofday(&stTv, NULL);
-    stDivpBufConf.u64TargetPts = stTv.tv_sec * 1000000 + stTv.tv_usec;
-    stDivpBufConf.stFrameCfg.eFormat = E_MI_SYS_PIXEL_FRAME_YUV_SEMIPLANAR_420;
-    stDivpBufConf.stFrameCfg.eFrameScanMode = E_MI_SYS_FRAME_SCAN_MODE_PROGRESSIVE;
-    stDivpBufConf.stFrameCfg.u16Width = encode->option.resolutionRate.width;
-    stDivpBufConf.stFrameCfg.u16Height = encode->option.resolutionRate.height;
+//     memset(&stDivpBufConf, 0, sizeof(MI_SYS_BufConf_t));
+//     stDivpBufConf.eBufType = E_MI_SYS_BUFDATA_FRAME;
+//     gettimeofday(&stTv, NULL);
+//     stDivpBufConf.u64TargetPts = stTv.tv_sec * 1000000 + stTv.tv_usec;
+//     stDivpBufConf.stFrameCfg.eFormat = E_MI_SYS_PIXEL_FRAME_YUV_SEMIPLANAR_420;
+//     stDivpBufConf.stFrameCfg.eFrameScanMode = E_MI_SYS_FRAME_SCAN_MODE_PROGRESSIVE;
+//     stDivpBufConf.stFrameCfg.u16Width = encode->option.resolutionRate.width;
+//     stDivpBufConf.stFrameCfg.u16Height = encode->option.resolutionRate.height;
 
-    memset(&stDivpBufInfo,0,sizeof(MI_SYS_BufInfo_t));
+//     memset(&stDivpBufInfo,0,sizeof(MI_SYS_BufInfo_t));
 
-    ret = MI_SYS_ChnInputPortGetBuf(&stDivpChnInput, &stDivpBufConf, &stDivpBufInfo, &hDivpHandle, 0);
-    if (ret == 0)
-    {
-        // printf("encode->option.yuvInputData.bufSize : %d \n\n\n\n", encode->option.yuvInputData.bufSize);
-        // memcpy(stDivpBufInfo.stFrameData.pVirAddr[0], encode->option.yuvInputData.pVirAddr[0], encode->option.yuvInputData.u32BufSize);
-        stDivpBufInfo.stFrameData.pVirAddr[0] = encode->option.yuvInputData.pVirAddr[0];
-        stDivpBufInfo.stFrameData.pVirAddr[1] = encode->option.yuvInputData.pVirAddr[1];
-        stDivpBufInfo.stFrameData.pVirAddr[2] = encode->option.yuvInputData.pVirAddr[2];
+//     ret = MI_SYS_ChnInputPortGetBuf(&stDivpChnInput, &stDivpBufConf, &stDivpBufInfo, &hDivpHandle, 0);
+//     if (ret == 0)
+//     {
+//         // printf("encode->option.yuvInputData.bufSize : %d \n\n\n\n", encode->option.yuvInputData.bufSize);
+//         // memcpy(stDivpBufInfo.stFrameData.pVirAddr[0], encode->option.yuvInputData.pVirAddr[0], encode->option.yuvInputData.u32BufSize);
+//         stDivpBufInfo.stFrameData.pVirAddr[0] = encode->option.yuvInputData.pVirAddr[0];
+//         stDivpBufInfo.stFrameData.pVirAddr[1] = encode->option.yuvInputData.pVirAddr[1];
+//         stDivpBufInfo.stFrameData.pVirAddr[2] = encode->option.yuvInputData.pVirAddr[2];
 
-    }
+//     }
 
-    ret = MI_SYS_ChnInputPortPutBuf(hDivpHandle, &stDivpBufInfo, FALSE);
+//     ret = MI_SYS_ChnInputPortPutBuf(hDivpHandle, &stDivpBufInfo, FALSE);
 
-    // free(encoder->option.yuvOutputData.pVireAddr[0]);
-    return ret;
-}
+//     // free(encoder->option.yuvOutputData.pVireAddr[0]);
+//     return ret;
+// }
+// 
 /*
 *  Function name : encodeDestroy 接口函数
 *  In            : YTY_NOVA_ENCODER *encode 唯一结构体
@@ -917,7 +917,7 @@ TY_NOVA_ENCODER_QUEUE *nova_encoder(TY_NOVA_ENCODER *NOVA_encoder)
     NOVA_encoder->encodeCreate = encodeCreate;
     NOVA_encoder->encodeGetCompressData = encodeGetCompressData;
     NOVA_encoder->encodeOutputYUVData = encodeOutputYUVData;
-    NOVA_encoder->encodeInputYUVData = encodeInputYUVData;
+    // NOVA_encoder->encodeInputYUVData = encodeInputYUVData;
 
     NOVA_encoder->encodeCreate_General = encodeCreate_General;
     NOVA_encoder->encodeGetCompressData_General = encodeGetCompressData_General;

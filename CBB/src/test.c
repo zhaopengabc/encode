@@ -56,15 +56,6 @@ void* nova_encode_0(void *argc)
     while (!g_bExit)
     {
         encoder_queue->encoders->encodeOutputYUVData(&encoder);
-        // encoder.option.yuvInputData.pVirAddr[0] = (void *)malloc(encoder.option.yuvOutputData.bufSize);
-
-        // memcpy(encoder.option.yuvInputData.pVirAddr[0], encoder.option.yuvOutputData.pVirAddr[0],encoder.option.yuvOutputData.u32BufSize);
-        // encoder.option.yuvInputData.pVirAddr[0]=encoder.option.yuvOutputData.pVirAddr[0];
-        // encoder.option.yuvInputData.pVirAddr[1]=encoder.option.yuvOutputData.pVirAddr[1];
-        // encoder.option.yuvInputData.pVirAddr[2]=encoder.option.yuvOutputData.pVirAddr[2];
-
-        // encoder_queue->encoders->encodeInputYUVData(&encoder);
-        // free(encoder.option.yuvInputData.pVirAddr[0]);
 
         encoder_queue->encoders->encodeGetCompressData(&encoder);
 
