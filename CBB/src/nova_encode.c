@@ -46,7 +46,7 @@ static int initVIF(TY_ENCODE_INSIDE_PARAM insideParam)
     MI_VIF_FrameRate_e eFrameRate = E_MI_VIF_FRAMERATE_FULL;
     MI_SYS_PixelFormat_e ePixFormat;
 
-    if(insideParam.vifChn == 0)
+    if (insideParam.vifChn == 0)
     {
         eSnrPadId = E_MI_SNR_PAD_ID_0;
     }
@@ -54,7 +54,7 @@ static int initVIF(TY_ENCODE_INSIDE_PARAM insideParam)
     {
         eSnrPadId = E_MI_SNR_PAD_ID_1;
     }
-    
+
     MI_SNR_SetRes(eSnrPadId, 0);
     MI_SNR_Enable(eSnrPadId);
     MI_SNR_GetPadInfo(eSnrPadId, &stPad0Info);
@@ -433,6 +433,8 @@ static int encodeOutputYUVData(TY_NOVA_ENCODER *encode)
     TY_NOVA_ENCODER *encoder;
     encoder = (TY_NOVA_ENCODER *)encode;
 
+    TY_NOVA_ENCODER tmpEncode;
+
     MI_S32 s32Fd = 0;
     MI_U32 ret = 0;
     MI_SYS_BufInfo_t stBufInfo;
@@ -491,11 +493,39 @@ static int encodeOutputYUVData(TY_NOVA_ENCODER *encode)
                 }
                 else
                 {
-                    int size = stBufInfo.stFrameData.u32BufSize;
-                    printf("size : %d \n", size);
-                    encode->option.yuvOutputData.bufSize = stBufInfo.stFrameData.u32BufSize;
-                    encode->option.yuvOutputData.pVireAddr[0] = stBufInfo.stFrameData.pVirAddr[0];
+                    MI_SYS_BufConf_t stVencBufConf;
+                    MI_SYS_ChnPort_t stVencChnInput;
+                    MI_SYS_BUF_HANDLE hVencHandle;
+                    MI_SYS_BufInfo_t stVencBufInfo;
+                    MI_U32 u32VencDevId = 0;
 
+                    MI_VENC_GetChnDevid(0, &u32VencDevId);
+                    memset(&stVencChnInput, 0, sizeof(MI_SYS_ChnPort_t));
+                    stVencChnInput.eModId = E_MI_MODULE_ID_DIVP;
+                    stVencChnInput.u32DevId = u32VencDevId;
+                    stVencChnInput.u32ChnId = 0;
+                    stVencChnInput.u32PortId = 0;
+                    struct timeval stTv;
+                    memset(&stVencBufConf, 0, sizeof(MI_SYS_BufConf_t));
+                    stVencBufConf.eBufType = E_MI_SYS_BUFDATA_FRAME;
+                    gettimeofday(&stTv, NULL);
+                    stVencBufConf.u64TargetPts = stTv.tv_sec * 1000000 + stTv.tv_usec;
+                    stVencBufConf.stFrameCfg.eFormat = E_MI_SYS_PIXEL_FRAME_YUV_SEMIPLANAR_420;
+                    stVencBufConf.stFrameCfg.eFrameScanMode = E_MI_SYS_FRAME_SCAN_MODE_PROGRESSIVE;
+                    stVencBufConf.stFrameCfg.u16Width = 1920;
+                    stVencBufConf.stFrameCfg.u16Height = 1080;
+
+                    ret = MI_SYS_ChnInputPortGetBuf(&stVencChnInput, &stVencBufConf, &stVencBufInfo, &hVencHandle, 0);
+                    int size = stBufInfo.stFrameData.u32BufSize;
+
+                    encode->option.yuvOutputData.pVirAddr[0] = stBufInfo.stFrameData.pVirAddr[0];
+                    encode->option.yuvOutputData.pVirAddr[1] = stBufInfo.stFrameData.pVirAddr[1];
+                    encode->option.yuvOutputData.pVirAddr[2] = stBufInfo.stFrameData.pVirAddr[2];
+
+                    encode->option.processYUVData(&(encode->option.yuvInputData),&(encode->option.yuvOutputData));
+
+                    memcpy(stVencBufInfo.stFrameData.pVirAddr[0], encode->option.yuvInputData.pVirAddr[0], size);
+                    MI_SYS_ChnInputPortPutBuf(hVencHandle, &stVencBufInfo, FALSE);
                     MI_SYS_ChnOutputPortPutBuf(hHandle);
                 }
             }
@@ -525,6 +555,9 @@ static int encodeInputYUVData(TY_NOVA_ENCODER *encode)
     MI_SYS_BufConf_t stDivpBufConf;
     MI_SYS_BufInfo_t stDivpBufInfo;
     MI_SYS_BUF_HANDLE hDivpHandle;
+    MI_U32 u32DevId = 0;
+
+    // MI_VENC_GetChnDevid(encode->insideParam.DivpChn, &u32DevId);
 
     memset(&stDivpChnInput, 0, sizeof(MI_SYS_ChnPort_t));
     stDivpChnInput.eModId = E_MI_MODULE_ID_DIVP;
@@ -541,14 +574,22 @@ static int encodeInputYUVData(TY_NOVA_ENCODER *encode)
     stDivpBufConf.stFrameCfg.u16Width = encode->option.resolutionRate.width;
     stDivpBufConf.stFrameCfg.u16Height = encode->option.resolutionRate.height;
 
+    memset(&stDivpBufInfo,0,sizeof(MI_SYS_BufInfo_t));
+
     ret = MI_SYS_ChnInputPortGetBuf(&stDivpChnInput, &stDivpBufConf, &stDivpBufInfo, &hDivpHandle, 0);
     if (ret == 0)
     {
-        stDivpBufInfo.stFrameData.pVirAddr[0] = encode->option.yuvInputData.pVireAddr[0];
+        // printf("encode->option.yuvInputData.bufSize : %d \n\n\n\n", encode->option.yuvInputData.bufSize);
+        // memcpy(stDivpBufInfo.stFrameData.pVirAddr[0], encode->option.yuvInputData.pVirAddr[0], encode->option.yuvInputData.u32BufSize);
+        stDivpBufInfo.stFrameData.pVirAddr[0] = encode->option.yuvInputData.pVirAddr[0];
+        stDivpBufInfo.stFrameData.pVirAddr[1] = encode->option.yuvInputData.pVirAddr[1];
+        stDivpBufInfo.stFrameData.pVirAddr[2] = encode->option.yuvInputData.pVirAddr[2];
+
     }
 
     ret = MI_SYS_ChnInputPortPutBuf(hDivpHandle, &stDivpBufInfo, FALSE);
 
+    // free(encoder->option.yuvOutputData.pVireAddr[0]);
     return ret;
 }
 /*
@@ -882,7 +923,6 @@ TY_NOVA_ENCODER_QUEUE *nova_encoder(TY_NOVA_ENCODER *NOVA_encoder)
     NOVA_encoder->encodeGetCompressData_General = encodeGetCompressData_General;
     NOVA_encoder->encodeDestroy_General = encodeDestroy_General;
 
-
     return encode_queue;
 }
 
@@ -903,7 +943,7 @@ int main()
     TY_NOVA_ENCODER encoder;
     encoder.name = "sigmastar";
     encoder.option.channel = 0;
-    encoder.option.YUVDataType = YUV_SEMIPLANAR_420;
+    encoder.option.inputDataType = YUV_SEMIPLANAR_420;
     encoder.option.mediaType = AVMEDIA_TYPE_VIDEO;
     encoder.option.encodeFormat = AV_ENCDOE_ID_H264;
     encoder.option.resolutionRate.width = 1920;

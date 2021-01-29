@@ -52,8 +52,8 @@ typedef struct encode_out_data
 }TY_ENCODE_OUT_DATA;
 typedef struct YUV_data
 {
-    int bufSize;
-    void *pVireAddr[3];
+    MI_U32 bufSize;
+    void *pVirAddr[3];
     unsigned long phyAddr[3];
     unsigned long stride[3];
 }TY_YUV_DATA;
@@ -68,6 +68,8 @@ typedef struct encode_option
     TY_ENCODE_OUT_DATA compressData;
     TY_YUV_DATA yuvInputData;
     TY_YUV_DATA yuvOutputData;
+
+    int (*processYUVData)(void *desData,void *srcData);
 }TY_ENCODE_OPTION;
 
 typedef struct encode_inside_parameter
@@ -110,7 +112,6 @@ typedef struct nova_encoder_queue
 {
     TY_NOVA_ENCODER *encoders;
 }TY_NOVA_ENCODER_QUEUE;
-
 
 
 #endif /*NOVA_ENCODE_H*/

@@ -18,7 +18,12 @@ void ST_HandleSig(MI_S32 signo)
         g_bExit = TRUE;
     }
 }
-
+static int processYUVData(TY_YUV_DATA *desData,TY_YUV_DATA *srcData)
+{
+    desData->pVirAddr[0] = srcData->pVirAddr[0];
+    desData->pVirAddr[1] = srcData->pVirAddr[1];
+    desData->pVirAddr[2] = srcData->pVirAddr[2];
+}
 void* nova_encode_0(void *argc)
 {
     signal(SIGINT,ST_HandleSig);
@@ -31,13 +36,13 @@ void* nova_encode_0(void *argc)
     memset(&encoder,0,sizeof(TY_NOVA_ENCODER));
     encoder.name = "sigmastar";
     encoder.option.channel = 0;
-    encoder.option.inputDataType = YUV_SEMIPLANAR_420;
+    encoder.option.YUVDataType = YUV_SEMIPLANAR_420;
     encoder.option.mediaType = AVMEDIA_TYPE_VIDEO;
     encoder.option.encodeFormat = AV_ENCDOE_ID_H264;
     encoder.option.resolutionRate.width = 1920;
     encoder.option.resolutionRate.height = 1080;
     encoder.option.resolutionRate.rate = 30;
-
+    encoder.option.processYUVData = processYUVData;
     encoder_queue = nova_encoder(&encoder);
     encoder_queue->encoders->encodeCreate(&encoder);
 
@@ -51,19 +56,27 @@ void* nova_encode_0(void *argc)
     while (!g_bExit)
     {
         encoder_queue->encoders->encodeOutputYUVData(&encoder);
-        memcpy(&(encoder.option.yuvInputData), &(encoder.option.yuvOutputData),sizeof(encoder.option.yuvOutputData));
-        encoder_queue->encoders->encodeInputYUVData(&encoder);
+        // encoder.option.yuvInputData.pVirAddr[0] = (void *)malloc(encoder.option.yuvOutputData.bufSize);
+
+        // memcpy(encoder.option.yuvInputData.pVirAddr[0], encoder.option.yuvOutputData.pVirAddr[0],encoder.option.yuvOutputData.u32BufSize);
+        // encoder.option.yuvInputData.pVirAddr[0]=encoder.option.yuvOutputData.pVirAddr[0];
+        // encoder.option.yuvInputData.pVirAddr[1]=encoder.option.yuvOutputData.pVirAddr[1];
+        // encoder.option.yuvInputData.pVirAddr[2]=encoder.option.yuvOutputData.pVirAddr[2];
+
+        // encoder_queue->encoders->encodeInputYUVData(&encoder);
+        // free(encoder.option.yuvInputData.pVirAddr[0]);
+
         encoder_queue->encoders->encodeGetCompressData(&encoder);
 
         memset(&(pushStream.param.frameData),0,sizeof(pushStream.param.frameData));
-        pushStream.param.frameData.len = encoder.option.outdata.frameLen;
+        pushStream.param.frameData.len = encoder.option.compressData.frameLen;
         if(pushStream.param.frameData.len > 0)
         {
-            pushStream.param.frameData.data = encoder.option.outdata.buf;
+            pushStream.param.frameData.data = encoder.option.compressData.buf;
             pushStream.pushStream(&pushStream.param);
         }
 
-        sleep(1);
+        // sleep(1);
     }
     encoder_queue->encoders->encodeDestroy(&encoder);
 
@@ -81,7 +94,7 @@ void* nova_encode_2(void *argc)
     memset(&encoder,0,sizeof(TY_NOVA_ENCODER));
     encoder.name = "sigmastar";
     encoder.option.channel = 2;
-    encoder.option.inputDataType = YUV_SEMIPLANAR_420;
+    encoder.option.YUVDataType = YUV_SEMIPLANAR_420;
     encoder.option.mediaType = AVMEDIA_TYPE_VIDEO;
     encoder.option.encodeFormat = AV_ENCDOE_ID_H264;
     encoder.option.resolutionRate.width = 1280;
@@ -103,14 +116,14 @@ void* nova_encode_2(void *argc)
 
 
         memset(&(pushStream.param.frameData),0,sizeof(pushStream.param.frameData));
-        pushStream.param.frameData.len = encoder.option.outdata.frameLen;
+        pushStream.param.frameData.len = encoder.option.compressData.frameLen;
         if(pushStream.param.frameData.len > 0)
         {
-            pushStream.param.frameData.data = encoder.option.outdata.buf;
+            pushStream.param.frameData.data = encoder.option.compressData.buf;
             pushStream.pushStream(&pushStream.param);
         }
 
-        sleep(1);
+        // sleep(1);
     }
 
     encoder_queue->encoders->encodeDestroy_General(&encoder);
