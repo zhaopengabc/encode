@@ -80,11 +80,12 @@ YUV数据类型：保护数据长度，虚拟地址，物理地址，对齐地�
 */
 typedef struct YUV_data
 {
-    MI_U32 bufSize;
+    MI_U32 u32BufSize;
     void *pVirAddr[3];
     unsigned long phyAddr[3];
     unsigned long stride[3];
 }TY_YUV_DATA;
+
 /*
 网络传输方式：CVR/VBR/FixQp/AVBR
 */
@@ -117,7 +118,7 @@ typedef struct encode_option
     TY_RESOLUTION_RATE  resolutionRate;
     TY_ENCODE_OUT_DATA compressData;
     TY_IMAGE_QUALITY imageQuality;
-    int (*processYUVData)(void *desData,void *srcData);
+    int (*processYUVData)(TY_YUV_DATA *desData,TY_YUV_DATA *srcData);
 }TY_ENCODE_OPTION;
 /*
 编码器内部参数，主要是各个模块通道，像素格式等，为了内部操作方便，引入此函数。

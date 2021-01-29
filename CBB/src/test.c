@@ -32,16 +32,15 @@ void ST_HandleSig(MI_S32 signo)
 *  Return        : 
 *  Description   : 获取YUV回调函数，可以对YUV进行任何操作
 */
-static int processYUVData(void *des,void *src)
+static int processYUVData(TY_YUV_DATA *desData,TY_YUV_DATA *srcData)
 {
     int ret = 0;
-    TY_YUV_DATA *desData;
-    TY_YUV_DATA *srcData;
-    desData = (TY_YUV_DATA *)des;
-    srcData = (TY_YUV_DATA *)src;
-    desData->pVirAddr[0] = srcData->pVirAddr[0];
-    desData->pVirAddr[1] = srcData->pVirAddr[1];
-    desData->pVirAddr[2] = srcData->pVirAddr[2];
+    // desData->bufSize = srcData->bufSize;
+    // desData->pVirAddr[0] = srcData->pVirAddr[0];
+    // desData->pVirAddr[1] = srcData->pVirAddr[1];
+    // desData->pVirAddr[2] = srcData->pVirAddr[2];
+
+    memcpy(desData,srcData,sizeof(MI_SYS_FrameData_t));
 
     return ret;
 }
@@ -96,6 +95,8 @@ void* nova_encode_0(void *argc)
         }
         // sleep(1);
     }
+    // printf("\n\n\n\n");
+
     encoder_queue->encoders->encodeDestroy(&encoder);
 
     nova_encoder_free(encoder_queue);
@@ -151,7 +152,7 @@ void* nova_encode_2(void *argc)
 
         // sleep(1);
     }
-
+    printf("\n\n\n\n");
     encoder_queue->encoders->encodeDestroy_General(&encoder);
 
     nova_encoder_free(encoder_queue);

@@ -124,12 +124,12 @@ static int initVPE(TY_ENCODE_INSIDE_PARAM insideParam)
     stVpeChannelInfo.eBindSensorId = E_MI_VPE_SENSOR0;
 
     ret = ST_Vpe_CreateChannel(insideParam.VpeChn, &stVpeChannelInfo);
-    if(ret != 0)
+    if (ret != 0)
     {
         return ret;
     }
     ret = ST_Vpe_StartChannel(insideParam.VpeChn);
-    if(ret != 0)
+    if (ret != 0)
     {
         return ret;
     }
@@ -143,7 +143,7 @@ static int initVPE(TY_ENCODE_INSIDE_PARAM insideParam)
     stVpePortInfo.ePixelFormat = insideParam.inputYUVType;
     stVpePortInfo.eCompressMode = E_MI_SYS_COMPRESS_MODE_NONE;
     ret = ST_Vpe_StartPort(insideParam.u32InputPort, &stVpePortInfo);
-    if(ret != 0)
+    if (ret != 0)
     {
         return ret;
     }
@@ -192,12 +192,12 @@ static int initDIVP(TY_ENCODE_INSIDE_PARAM insideParam)
     stDivpChnAttr.u32MaxHeight = insideParam.resolutionRate.height;
 
     ret = MI_DIVP_CreateChn(insideParam.DivpChn, &stDivpChnAttr);
-    if(ret != 0)
+    if (ret != 0)
     {
         return ret;
     }
     ret = MI_DIVP_StartChn(insideParam.DivpChn);
-    if(ret != 0)
+    if (ret != 0)
     {
         return ret;
     }
@@ -275,17 +275,17 @@ static int initVENC(TY_ENCODE_INSIDE_PARAM insideParam)
     }
 
     ret = ST_Venc_CreateChannel(insideParam.VencChn, &stChnAttr);
-    if(ret != 0)
+    if (ret != 0)
     {
         return ret;
-    }    
+    }
     ret = ST_Venc_StartChannel(insideParam.VencChn);
-    if(ret != 0)
+    if (ret != 0)
     {
         return ret;
     }
     ret = MI_VENC_GetChnDevid(insideParam.VencChn, &insideParam.u32VencDevId);
-    if(ret != 0)
+    if (ret != 0)
     {
         return ret;
     }
@@ -335,27 +335,27 @@ static int deinitVPE(TY_ENCODE_INSIDE_PARAM *insideParam)
     stBindInfo.u32DstFrmrate = 30;
     stBindInfo.eBindType = E_MI_SYS_BIND_TYPE_FRAME_BASE;
     ret = ST_Sys_UnBind(&stBindInfo);
-    if(ret != 0)
+    if (ret != 0)
     {
         return ret;
     }
     ret = ST_Vpe_StopPort(insideParam->VpeChn, 0);
-    if(ret != 0)
+    if (ret != 0)
     {
         return ret;
     }
     ret = ST_Vpe_StopChannel(insideParam->VpeChn);
-    if(ret != 0)
+    if (ret != 0)
     {
         return ret;
-    }    
+    }
     ret = ST_Vpe_DestroyChannel(insideParam->VpeChn);
-    if(ret != 0)
+    if (ret != 0)
     {
         return ret;
     }
     ret = ST_Vif_StopPort(insideParam->vifChn, 0);
-    if(ret != 0)
+    if (ret != 0)
     {
         return ret;
     }
@@ -588,14 +588,22 @@ static int encodeOutputYUVData(void *encode)
                     ret = MI_SYS_ChnInputPortGetBuf(&stVencChnInput, &stVencBufConf, &stVencBufInfo, &hVencHandle, 0);
                     int size = stBufInfo.stFrameData.u32BufSize;
 
+                    yuvOutputData.u32BufSize = size;
                     yuvOutputData.pVirAddr[0] = stBufInfo.stFrameData.pVirAddr[0];
                     yuvOutputData.pVirAddr[1] = stBufInfo.stFrameData.pVirAddr[1];
                     yuvOutputData.pVirAddr[2] = stBufInfo.stFrameData.pVirAddr[2];
 
                     encoder->option.processYUVData(&yuvInputData, &yuvOutputData);
-
-                    memcpy(stVencBufInfo.stFrameData.pVirAddr[0], yuvInputData.pVirAddr[0], size);
-                    MI_SYS_ChnInputPortPutBuf(hVencHandle, &stVencBufInfo, FALSE);
+                    if (yuvInputData.u32BufSize == size)
+                    {
+                        memcpy(stVencBufInfo.stFrameData.pVirAddr[0], yuvInputData.pVirAddr[0], size);
+                        MI_SYS_ChnInputPortPutBuf(hVencHandle, &stVencBufInfo, FALSE);
+                    }
+                    else
+                    {
+                        ret = -1;
+                    }
+                    
                     MI_SYS_ChnOutputPortPutBuf(hHandle);
                 }
             }
@@ -673,24 +681,29 @@ static int encodeOutputYUVData(void *encode)
 */
 static int encodeDestroy(void *encoder)
 {
+
     int ret = 0;
     TY_NOVA_ENCODER *encode;
     encode = (TY_NOVA_ENCODER *)encoder;
+
     ret = deinitVENC(&(encode->insideParam));
     if (ret != 0)
     {
         return ret;
     }
+
     ret = deinitDIVP(&(encode->insideParam));
     if (ret != 0)
     {
         return ret;
     }
+
     ret = deinitVPE(&(encode->insideParam));
     if (ret != 0)
     {
         return ret;
     }
+
     ret = ST_Sys_Exit();
 
     return ret;
