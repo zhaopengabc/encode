@@ -498,6 +498,9 @@ static int encodeOutputYUVData(TY_NOVA_ENCODER *encode)
                     MI_SYS_BufInfo_t stVencBufInfo;
                     MI_U32 u32VencDevId = 0;
 
+                    TY_YUV_DATA yuvInputData;
+                    TY_YUV_DATA yuvOutputData;
+
                     MI_VENC_GetChnDevid(0, &u32VencDevId);
                     memset(&stVencChnInput, 0, sizeof(MI_SYS_ChnPort_t));
                     stVencChnInput.eModId = E_MI_MODULE_ID_DIVP;
@@ -517,13 +520,13 @@ static int encodeOutputYUVData(TY_NOVA_ENCODER *encode)
                     ret = MI_SYS_ChnInputPortGetBuf(&stVencChnInput, &stVencBufConf, &stVencBufInfo, &hVencHandle, 0);
                     int size = stBufInfo.stFrameData.u32BufSize;
 
-                    encode->option.yuvOutputData.pVirAddr[0] = stBufInfo.stFrameData.pVirAddr[0];
-                    encode->option.yuvOutputData.pVirAddr[1] = stBufInfo.stFrameData.pVirAddr[1];
-                    encode->option.yuvOutputData.pVirAddr[2] = stBufInfo.stFrameData.pVirAddr[2];
+                    yuvOutputData.pVirAddr[0] = stBufInfo.stFrameData.pVirAddr[0];
+                    yuvOutputData.pVirAddr[1] = stBufInfo.stFrameData.pVirAddr[1];
+                    yuvOutputData.pVirAddr[2] = stBufInfo.stFrameData.pVirAddr[2];
 
-                    encode->option.processYUVData(&(encode->option.yuvInputData),&(encode->option.yuvOutputData));
+                    encode->option.processYUVData(&(yuvInputData),&(yuvOutputData));
 
-                    memcpy(stVencBufInfo.stFrameData.pVirAddr[0], encode->option.yuvInputData.pVirAddr[0], size);
+                    memcpy(stVencBufInfo.stFrameData.pVirAddr[0],yuvInputData.pVirAddr[0], size);
                     MI_SYS_ChnInputPortPutBuf(hVencHandle, &stVencBufInfo, FALSE);
                     MI_SYS_ChnOutputPortPutBuf(hHandle);
                 }
